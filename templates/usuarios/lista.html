@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios{% endblock %}
+{% block page_title %}Usuarios{% endblock %}
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+    <div>
+        <div style="font-size:22px;font-weight:600;">Gestión de usuarios</div>
+        <div style="font-size:13px;color:var(--text-muted);">Administra usuarios y sus roles</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'usuarios_pdf' %}" class="btn btn-secondary"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+        <a href="{% url 'usuario_crear' %}" class="btn btn-primary"><i class="bi bi-person-plus"></i> Nuevo usuario</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-search">
+        <form method="GET">
+            <div class="search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o correo…" value="{{ q }}">
+            </div>
+        </form>
+    </div>
+    <div class="table-wrap" style="max-height:calc(100vh - 280px);overflow-y:auto;">
+        <table>
+            <thead>
+                <tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Registrado</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:34px;height:34px;background:var(--surface-2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;border:1px solid var(--border);">
+                                {{ u.first_name|first|upper }}
+                            </div>
+                            <div>
+                                <div style="font-weight:500;">{{ u.get_full_name|default:u.username }}</div>
+                                {% if u == user %}<div style="font-size:11px;color:var(--accent);">Tú</div>{% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td style="color:var(--text-secondary);font-size:13px;">{{ u.email }}</td>
+                    <td>
+                        <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;
+                            background:{% if u.rol == 'admin' %}var(--accent-light){% else %}var(--surface-2){% endif %};
+                            color:{% if u.rol == 'admin' %}var(--accent){% else %}var(--text-secondary){% endif %};
+                            border:1px solid {% if u.rol == 'admin' %}#bfdbfe{% else %}var(--border){% endif %};">
+                            <i class="bi bi-{% if u.rol == 'admin' %}shield-check{% elif u.rol == 'empleado' %}person-badge{% else %}person{% endif %}" style="font-size:11px;"></i>
+                            {{ u.get_rol_display }}
+                        </span>
+                    </td>
+                    <td style="font-size:13px;color:var(--text-muted);font-family:'DM Mono',monospace;">{{ u.date_joined|date:"d/m/Y" }}</td>
+                    <td>
+                        <div style="display:flex;gap:6px;">
+                            <a href="{% url 'usuario_editar' u.pk %}" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i> Editar</a>
+                            {% if u != user %}
+                            <form method="POST" action="{% url 'usuario_eliminar' u.pk %}" onsubmit="return confirm('¿Eliminar este usuario?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align:center;padding:48px;color:var(--text-muted);">No hay usuarios.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="border-top:1px solid var(--border);padding:10px 24px;font-size:12px;color:var(--text-muted);">
+        {{ usuarios|length }} usuario{{ usuarios|length|pluralize:"s" }} en total
+    </div>
+</div>
+{% endblock %}

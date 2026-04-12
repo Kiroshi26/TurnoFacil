@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}Mis Turnos{% block extra_js %}
+<script>
+// Polling cada 8 segundos para verificar si el turno fue llamado
+function verificarLlamado() {
+    fetch('/turnos/verificar-llamado/')
+    .then(r => r.json())
+    .then(data => {
+        if (data.llamado) {
+            // Notificación visual prominente
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;';
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:360px;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:pop .3s ease;">
+                    <div style="font-size:48px;margin-bottom:16px;">📢</div>
+                    <div style="font-size:24px;font-weight:700;margin-bottom:8px;">${data.numero_turno}</div>
+                    <div style="font-size:15px;color:#6b6860;margin-bottom:28px;">${data.mensaje}</div>
+                    <button onclick="this.closest('[style*=fixed]').remove()"
+                        style="padding:12px 28px;background:#1a1916;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">
+                        Entendido
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            // Sonido de notificación (tono suave)
+            try {
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.8);
+            } catch(e) {}
+        }
+    })
+    .catch(() => {});
+}
+
+// Iniciar polling solo si hay turnos pendientes
+if (parseInt(document.getElementById('panel-data').dataset.pendientes) > 0) {
+    setInterval(verificarLlamado, 8000);
+}
+
+// Animación del popup
+const style = document.createElement('style');
+style.textContent = '@keyframes pop { from { transform:scale(.8); opacity:0; } to { transform:scale(1); opacity:1; } }';
+document.head.appendChild(style);
+</script>
+{% endblock %}
+
+{% endblock %}
+{% block page_title %}Mis Turnos{% endblock %}
+{% block content %}
+<div id="panel-data" data-pendientes="{{ pendientes }}"></div>
+
+<div style="margin-bottom:24px;">
+    <div style="font-size:22px;font-weight:600;letter-spacing:-.3px;">
+        Hola, <span style="color:var(--accent);">{{ user.first_name|default:user.username }}</span> 👋
+    </div>
+    <div style="font-size:13px;color:var(--text-muted);margin-top:3px;">{{ now|date:"l, d \d\e F Y" }}</div>
+</div>
+
+{% if proximo_turno %}
+<div style="background:var(--text-primary);border-radius:var(--radius);padding:28px 32px;color:#fff;margin-bottom:24px;position:relative;overflow:hidden;">
+    <div style="position:absolute;right:-50px;top:-50px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(255,255,255,.07);pointer-events:none;"></div>
+    <div style="position:relative;z-index:1;">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.45);margin-bottom:14px;">Próximo turno</div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+            <div>
+                <div style="font-size:44px;font-weight:300;letter-spacing:-2px;line-height:1;">{{ proximo_turno.numero_turno }}</div>
+                <div style="font-size:14px;color:rgba(255,255,255,.6);margin-top:8px;">
+                    {{ proximo_turno.fecha|date:"l d \d\e F" }} · {{ proximo_turno.hora }}
+                </div>
+                {% if proximo_turno.motivo %}
+                <div style="font-size:13px;color:rgba(255,255,255,.45);margin-top:4px;">{{ proximo_turno.motivo }}</div>
+                {% endif %}
+            </div>
+            <a href="{% url 'turno_crear' %}" style="display:inline-flex;align-items:center;gap:7px;padding:11px 20px;background:rgba(255,255,255,.1);color:#fff;border-radius:var(--radius-sm);font-size:13px;font-weight:500;text-decoration:none;border:1px solid rgba(255,255,255,.18);">
+                <i class="bi bi-plus"></i> Nuevo turno
+            </a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+    <div>
+        <div style="font-size:15px;font-weight:500;">No tienes turnos pendientes</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:3px;">Solicita un turno para continuar</div>
+    </div>
+    <a href="{% url 'turno_crear' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Solicitar turno</a>
+</div>
+{% endif %}
+
+<div class="grid-3" style="margin-bottom:24px;">
+    <div class="stat-card">
+        <div><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning);">{{ pendientes }}</div></div>
+        <div class="stat-icon" style="background:var(--warning-light);color:var(--warning);"><i class="bi bi-hourglass-split"></i></div>
+    </div>
+    <div class="stat-card">
+        <div><div class="stat-label">Atendidos</div><div class="stat-value" style="color:var(--success);">{{ atendidos }}</div></div>
+        <div class="stat-icon" style="background:var(--success-light);color:var(--success);"><i class="bi bi-check-circle"></i></div>
+    </div>
+    <div class="stat-card">
+        <div><div class="stat-label">Cancelados</div><div class="stat-value" style="color:var(--danger);">{{ cancelados }}</div></div>
+        <div class="stat-icon" style="background:var(--danger-light);color:var(--danger);"><i class="bi bi-x-circle"></i></div>
+    </div>
+</div>
+
+<div class="card">
+    <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <div style="font-size:14px;font-weight:600;">Historial de turnos</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Todos tus turnos registrados</div>
+        </div>
+        <a href="{% url 'turno_crear' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Nuevo turno</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>N° Turno</th><th>Documento</th><th>Motivo</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for turno in turnos %}
+                <tr>
+                    <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);">{{ turno.numero_turno }}</td>
+                    <td>
+                        <div style="font-size:11px;color:var(--text-muted);">{{ turno.tipo_documento }}</div>
+                        <div style="font-size:13px;font-weight:500;">{{ turno.numero_documento }}</div>
+                    </td>
+                    <td style="font-size:13px;color:var(--text-secondary);">{{ turno.motivo|default:"—" }}</td>
+                    <td style="font-size:13px;">{{ turno.fecha|date:"d/m/Y" }}</td>
+                    <td style="font-size:13px;">{{ turno.hora }}</td>
+                    <td><span class="badge badge-{% if turno.estado == 'Pendiente' %}warning{% elif turno.estado == 'Atendido' %}success{% else %}danger{% endif %}">{{ turno.estado }}</span></td>
+                    <td>
+                        {% if turno.estado == 'Pendiente' %}
+                        <a href="{% url 'turno_editar' turno.pk %}" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i> Editar</a>
+                        {% else %}
+                        <span style="font-size:12px;color:var(--text-muted);">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--text-muted);">Aún no tienes turnos registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

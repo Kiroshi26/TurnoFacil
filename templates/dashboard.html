@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% block extra_js_admin %}
+<script>
+function cambiarEstado(pk, estado, select) {
+    fetch('/turnos/' + pk + '/estado/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'estado=' + encodeURIComponent(estado)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const fila = select.closest('tr');
+            const badge = fila.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge badge-' + (estado === 'Pendiente' ? 'warning' : estado === 'Atendido' ? 'success' : 'danger');
+                badge.textContent = estado;
+            }
+            // Flash verde en la fila
+            fila.style.transition = 'background .3s';
+            fila.style.background = '#f0fdf4';
+            setTimeout(() => fila.style.background = '', 1500);
+        } else {
+            alert('Error al cambiar estado');
+            location.reload();
+        }
+    })
+    .catch(() => { alert('Error de conexión'); location.reload(); });
+}
+</script>
+{% endblock %}
+
+{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_pendientes|json_script:"chart-pendientes" }}
+{{ chart_atendidos|json_script:"chart-atendidos" }}
+
+<div style="margin-bottom:24px;">
+    <div style="font-size:22px;font-weight:600;letter-spacing:-.3px;">
+        Hola, <span style="color:var(--accent);">{{ user.first_name|default:user.username }}</span> 👋
+    </div>
+    <div style="font-size:13px;color:var(--text-muted);margin-top:3px;">{{ now|date:"l, d \d\e F Y" }}</div>
+</div>
+
+<div class="grid-4" style="margin-bottom:24px;">
+    <div class="stat-card">
+        <div><div class="stat-label">Total turnos</div><div class="stat-value">{{ total_turnos }}</div></div>
+        <div class="stat-icon" style="background:var(--accent-light);color:var(--accent);"><i class="bi bi-calendar3"></i></div>
+    </div>
+    <div class="stat-card">
+        <div><div class="stat-label">Turnos hoy</div><div class="stat-value" style="color:var(--accent);">{{ turnos_hoy }}</div></div>
+        <div class="stat-icon" style="background:var(--accent-light);color:var(--accent);"><i class="bi bi-calendar-day"></i></div>
+    </div>
+    <div class="stat-card">
+        <div><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning);">{{ pendientes }}</div></div>
+        <div class="stat-icon" style="background:var(--warning-light);color:var(--warning);"><i class="bi bi-hourglass-split"></i></div>
+    </div>
+    <div class="stat-card">
+        <div><div class="stat-label">Usuarios</div><div class="stat-value">{{ total_usuarios }}</div></div>
+        <div class="stat-icon" style="background:var(--surface-2);color:var(--text-secondary);"><i class="bi bi-people"></i></div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:24px;">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <div style="font-size:14px;font-weight:600;">Turnos últimos 7 días</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Pendientes vs Atendidos</div>
+        </div>
+    </div>
+    <div style="padding:24px 24px 16px;">
+        <canvas id="chartSemana" style="width:100%;height:260px;"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:600;">Últimos turnos</div>
+        <a href="{% url 'turnos_lista' %}" class="btn btn-secondary btn-sm">Ver todos <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>N° Turno</th><th>Cliente</th><th>Documento</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Empleado</th><th>Cambiar estado</th></tr>
+            </thead>
+            <tbody>
+                {% for turno in ultimos_turnos %}
+                <tr>
+                    <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);">{{ turno.numero_turno }}</td>
+                    <td style="font-weight:500;">{{ turno.cliente.get_full_name }}</td>
+                    <td>
+                        <div style="font-size:11px;color:var(--text-muted);">{{ turno.tipo_documento }}</div>
+                        <div style="font-size:13px;">{{ turno.numero_documento }}</div>
+                    </td>
+                    <td style="font-size:13px;">{{ turno.fecha|date:"d/m/Y" }}</td>
+                    <td style="font-size:13px;">{{ turno.hora }}</td>
+                    <td>
+                        <span class="badge badge-{% if turno.estado == 'Pendiente' %}warning{% elif turno.estado == 'Atendido' %}success{% else %}danger{% endif %}">
+                            {{ turno.estado }}
+                        </span>
+                    </td>
+                    <td style="font-size:13px;color:var(--text-muted);">{{ turno.empleado.get_full_name|default:"—" }}</td>
+                    <td>
+                        <select data-pk="{{ turno.pk }}"
+                            onchange="cambiarEstado(this.dataset.pk, this.value, this)"
+                            style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;">
+                            <option value="Pendiente" {% if turno.estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                            <option value="Atendido"  {% if turno.estado == 'Atendido'  %}selected{% endif %}>Atendido</option>
+                            <option value="Cancelado" {% if turno.estado == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">No hay turnos registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+var labels   = JSON.parse(document.getElementById('chart-labels').textContent);
+var pendData = JSON.parse(document.getElementById('chart-pendientes').textContent);
+var atData   = JSON.parse(document.getElementById('chart-atendidos').textContent);
+
+new Chart(document.getElementById('chartSemana'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Pendientes',
+                data: pendData,
+                borderColor: '#d97706',
+                backgroundColor: 'rgba(217,119,6,0.08)',
+                borderWidth: 2,
+                pointBackgroundColor: '#d97706',
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                fill: true,
+                tension: 0.4
+            },
+            {
+                label: 'Atendidos',
+                data: atData,
+                borderColor: '#16a34a',
+                backgroundColor: 'rgba(22,163,74,0.08)',
+                borderWidth: 2,
+                pointBackgroundColor: '#16a34a',
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                fill: true,
+                tension: 0.4
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
+            tooltip: {
+                callbacks: {
+                    title: function(items) { return items[0].label; }
+                }
+            },
+            datalabels: false
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: {
+                    font: { family: "'DM Sans', sans-serif", size: 12 },
+                    color: '#a8a49e',
+                    maxRotation: 0,
+                    minRotation: 0
+                }
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(0,0,0,0.05)' },
+                ticks: {
+                    stepSize: 1,
+                    font: { family: "'DM Sans', sans-serif", size: 12 },
+                    color: '#a8a49e'
+                }
+            }
+        }
+    }
+});
+</script>
+
+{% endblock %}

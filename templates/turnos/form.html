@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion }} Turno{% endblock %}
+{% block page_title %}{{ accion }} Turno{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:24px;">
+        {% if user.rol == 'cliente' %}
+        <a href="{% url 'cliente_panel' %}" style="color:var(--text-muted);text-decoration:none;">Mis Turnos</a>
+        {% elif user.rol == 'empleado' %}
+        <a href="{% url 'empleado_panel' %}" style="color:var(--text-muted);text-decoration:none;">Mis Turnos</a>
+        {% else %}
+        <a href="{% url 'turnos_lista' %}" style="color:var(--text-muted);text-decoration:none;">Turnos</a>
+        {% endif %}
+        <i class="bi bi-chevron-right" style="font-size:11px;"></i>
+        <span style="color:var(--text-primary);">{{ accion }} turno</span>
+    </div>
+
+    {% if turno %}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <span style="font-size:12px;font-family:'DM Mono',monospace;background:var(--surface-2);color:var(--text-muted);padding:4px 10px;border-radius:20px;border:1px solid var(--border);">{{ turno.numero_turno }}</span>
+        <span class="badge badge-{% if turno.estado == 'Pendiente' %}warning{% elif turno.estado == 'Atendido' %}success{% else %}danger{% endif %}">{{ turno.estado }}</span>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div style="padding:24px 28px 20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:16px;font-weight:600;">{{ accion }} turno</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:3px;">
+                {% if user.rol == 'cliente' and turno %}Puedes cambiar la hora y el empleado asignado
+                {% elif user.rol == 'empleado' and turno %}Puedes cambiar fecha, hora, empleado y estado
+                {% else %}Completa los datos del turno{% endif %}
+            </div>
+        </div>
+
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                {% include 'partials/form_errors.html' %}
+
+                {% if user.rol == 'cliente' and turno %}
+                <!-- Solo lectura para cliente -->
+                <div style="background:var(--surface-2);border-radius:var(--radius-sm);padding:16px 18px;margin-bottom:24px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);">Documento</div>
+                        <div style="font-size:13px;font-weight:500;">{{ turno.tipo_documento }} · {{ turno.numero_documento }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);">Motivo</div>
+                        <div style="font-size:13px;font-weight:500;">{{ turno.motivo|default:"—" }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);">Fecha</div>
+                        <div style="font-size:13px;font-weight:500;">{{ turno.fecha|date:"d/m/Y" }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);">Estado</div>
+                        <div style="font-size:13px;font-weight:500;">{{ turno.estado }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% for field in form %}
+                {% if field.is_hidden %}
+                    {{ field }}
+                {% else %}
+                <div class="mb-4">
+                    <label class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color:var(--danger)">*</span>{% endif %}
+                    </label>
+                    {% if field.field.widget.input_type == 'select' %}
+                    <select name="{{ field.html_name }}" class="form-select {% if field.errors %}is-invalid{% endif %}">
+                        {% for val, lbl in field.field.choices %}
+                        <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                    {% elif field.html_name == 'numero_documento' %}
+                    <input type="text"
+                           name="{{ field.html_name }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           value="{{ field.value|default:'' }}"
+                           oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                           inputmode="numeric"
+                           placeholder="Solo números"
+                           {% for k, v in field.field.widget.attrs.items %}{{ k }}="{{ v }}" {% endfor %}>
+                    {% elif field.html_name == 'motivo' %}
+                    <input type="text"
+                           name="{{ field.html_name }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           value="{{ field.value|default:'' }}"
+                           placeholder="Describe el motivo de tu visita"
+                           {% for k, v in field.field.widget.attrs.items %}{{ k }}="{{ v }}" {% endfor %}>
+                    {% else %}
+                    <input type="{{ field.field.widget.input_type }}"
+                           name="{{ field.html_name }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           value="{{ field.value|default:'' }}"
+                           {% for k, v in field.field.widget.attrs.items %}{{ k }}="{{ v }}" {% endfor %}>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <div class="invalid-feedback" style="display:block;">
+                        <i class="bi bi-exclamation-circle"></i> {{ error }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endfor %}
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div style="display:flex;gap:10px;padding-top:8px;border-top:1px solid var(--border);">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check2"></i> Guardar
+                    </button>
+                    {% if user.rol == 'cliente' %}
+                    <a href="{% url 'cliente_panel' %}" class="btn btn-secondary">Cancelar</a>
+                    {% elif user.rol == 'empleado' %}
+                    <a href="{% url 'empleado_panel' %}" class="btn btn-secondary">Cancelar</a>
+                    {% else %}
+                    <a href="{% url 'turnos_lista' %}" class="btn btn-secondary">Cancelar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if turno %}
+    <div style="margin-top:16px;">
+        <div class="card" style="border-color:#fecaca;">
+            <div class="card-body" style="padding:20px 24px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:var(--danger);">Zona peligrosa</div>
+                        <div style="font-size:12px;color:var(--text-muted);">Eliminar permanentemente este turno.</div>
+                    </div>
+                    <form method="POST" action="{% url 'turno_eliminar' turno.pk %}" onsubmit="return confirm('¿Eliminar? Esta acción no se puede deshacer.')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Eliminar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+const fechaInput = document.querySelector('input[name="fecha"]');
+const horaSelect = document.querySelector('select[name="hora"]');
+
+function actualizarHoras() {
+    if (!fechaInput || !horaSelect) return;
+    const hoy     = new Date().toISOString().split('T')[0];
+    const ahora   = new Date();
+    const minTotal= ahora.getHours() * 60 + ahora.getMinutes() + 30;
+
+    Array.from(horaSelect.options).forEach(opt => {
+        if (!opt.value) return;
+        const [h, m]  = opt.value.split(':').map(Number);
+        const esPasada= fechaInput.value === hoy && (h * 60 + m) < minTotal;
+        opt.disabled  = esPasada;
+        opt.text      = opt.value + (esPasada ? ' (no disponible)' : '');
+    });
+    if (horaSelect.selectedOptions[0]?.disabled) horaSelect.value = '';
+}
+
+fechaInput?.addEventListener('change', actualizarHoras);
+actualizarHoras();
+</script>
+{% endblock %}
+{% endblock %}

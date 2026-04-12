@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}{{ accion }} Usuario{% endblock %}
+{% block page_title %}{{ accion }} Usuario{% endblock %}
+{% block content %}
+<div style="max-width:560px;">
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:24px;">
+        <a href="{% url 'usuarios_lista' %}" style="color:var(--text-muted);text-decoration:none;">Usuarios</a>
+        <i class="bi bi-chevron-right" style="font-size:11px;"></i>
+        <span style="color:var(--text-primary);">{{ accion }}</span>
+    </div>
+    <div class="card">
+        <div style="padding:24px 28px 20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:16px;font-weight:600;">{{ accion }} usuario</div>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                {% include 'partials/form_errors.html' %}
+                <div class="grid-2">
+                    <div class="mb-4">
+                        <label class="form-label">Nombre <span style="color:var(--danger)">*</span></label>
+                        <input type="text" name="first_name"
+                            class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                            value="{{ form.first_name.value|default:'' }}"
+                            oninput="this.value=this.value.replace(/[0-9]/g,'')"
+                            placeholder="Solo letras">
+                        {% for e in form.first_name.errors %}
+                        <div class="invalid-feedback" style="display:block;"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Apellido</label>
+                        <input type="text" name="last_name"
+                            class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                            value="{{ form.last_name.value|default:'' }}"
+                            oninput="this.value=this.value.replace(/[0-9]/g,'')"
+                            placeholder="Solo letras">
+                        {% for e in form.last_name.errors %}
+                        <div class="invalid-feedback" style="display:block;"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Usuario <span style="color:var(--danger)">*</span></label>
+                    <input type="text" name="username" class="form-control" value="{{ form.username.value|default:'' }}">
+                    {% for e in form.username.errors %}<div class="invalid-feedback" style="display:block;">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Correo electrónico</label>
+                    <input type="email" name="email" class="form-control" value="{{ form.email.value|default:'' }}">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Rol <span style="color:var(--danger)">*</span></label>
+                    <select name="rol" class="form-select">
+                        {% for val, lbl in form.fields.rol.choices %}
+                        <option value="{{ val }}" {% if form.rol.value == val %}selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Contraseña {% if usuario %}(dejar vacío para no cambiar){% else %}<span style="color:var(--danger)">*</span>{% endif %}</label>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••">
+                    {% for e in form.password.errors %}<div class="invalid-feedback" style="display:block;">{{ e }}</div>{% endfor %}
+                </div>
+                <div style="display:flex;gap:10px;padding-top:8px;border-top:1px solid var(--border);">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check2"></i> Guardar</button>
+                    <a href="{% url 'usuarios_lista' %}" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if usuario and usuario != user %}
+    <div style="margin-top:16px;" class="card" style="border-color:#fecaca;">
+        <div class="card-body" style="padding:20px 24px;border:1px solid #fecaca;border-radius:var(--radius);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--danger);">Zona peligrosa</div>
+                    <div style="font-size:12px;color:var(--text-muted);">Eliminar permanentemente este usuario.</div>
+                </div>
+                <form method="POST" action="{% url 'usuario_eliminar' usuario.pk %}" onsubmit="return confirm('¿Eliminar este usuario?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

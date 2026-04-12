@@ -1,0 +1,18 @@
+{% if form.errors %}
+<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#dc2626;margin-bottom:10px;">
+        <i class="bi bi-exclamation-circle"></i>
+        Por favor corrige los siguientes errores:
+    </div>
+    <ul style="margin:0;padding-left:18px;font-size:13px;color:#dc2626;">
+        {% for field in form %}
+            {% for error in field.errors %}
+            <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+            {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}

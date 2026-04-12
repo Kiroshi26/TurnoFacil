@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Turnos{% endblock %}
+{% block page_title %}Turnos{% endblock %}
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+    <div>
+        <div style="font-size:22px;font-weight:600;">Gestión de turnos</div>
+        <div style="font-size:13px;color:var(--text-muted);">{{ total }} turno{{ total|pluralize:"s" }} registrado{{ total|pluralize:"s" }}</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'turnos_pdf' %}?q={{ q|urlencode }}&estado={{ estado|urlencode }}"
+           class="btn btn-secondary"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+           {% if q or estado %}<span style="font-size:11px;background:#e8e6e1;padding:2px 7px;border-radius:10px;margin-left:4px;">con filtros</span>{% endif %}
+        </a>
+        <a href="{% url 'turno_crear' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Nuevo turno</a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid-3" style="margin-bottom:24px;">
+    <div class="stat-card">
+        <div><div class="stat-label">Total</div><div class="stat-value">{{ total }}</div></div>
+        <div class="stat-icon" style="background:var(--accent-light);color:var(--accent);"><i class="bi bi-calendar3"></i></div>
+    </div>
+    <div class="stat-card">
+        <div><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning);">{{ pendientes }}</div></div>
+        <div class="stat-icon" style="background:var(--warning-light);color:var(--warning);"><i class="bi bi-hourglass-split"></i></div>
+    </div>
+    <div class="stat-card">
+        <div><div class="stat-label">Atendidos</div><div class="stat-value" style="color:var(--success);">{{ atendidos }}</div></div>
+        <div class="stat-icon" style="background:var(--success-light);color:var(--success);"><i class="bi bi-check-circle"></i></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-search">
+        <form method="GET" style="display:flex;gap:10px;flex:1;flex-wrap:wrap;">
+            <div class="search-wrap" style="flex:1;min-width:200px;">
+                <i class="bi bi-search"></i>
+                <input type="text" name="q" class="form-control" placeholder="Buscar turno, cliente o documento…" value="{{ q }}">
+            </div>
+            <select name="estado" class="form-select" style="width:160px;" onchange="this.form.submit()">
+                <option value="">Todos los estados</option>
+                <option value="Pendiente" {% if estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                <option value="Atendido"  {% if estado == 'Atendido'  %}selected{% endif %}>Atendido</option>
+                <option value="Cancelado" {% if estado == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>N° Turno</th><th>Tipo Doc.</th><th>N° Documento</th><th>Motivo</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Empleado</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for turno in turnos %}
+                <tr>
+                    <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);">{{ turno.numero_turno }}</td>
+                    <td style="font-size:12px;color:var(--text-muted);">{{ turno.tipo_documento }}</td>
+                    <td style="font-weight:500;">{{ turno.numero_documento }}</td>
+                    <td style="font-size:13px;color:var(--text-secondary);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ turno.motivo }}</td>
+                    <td style="font-size:13px;">{{ turno.fecha|date:"d/m/Y" }}</td>
+                    <td style="font-size:13px;">{{ turno.hora }}</td>
+                    <td><span class="badge badge-{% if turno.estado == 'Pendiente' %}warning{% elif turno.estado == 'Atendido' %}success{% else %}danger{% endif %}">{{ turno.estado }}</span></td>
+                    <td style="font-size:13px;color:var(--text-muted);">{{ turno.empleado.get_full_name|default:"—" }}</td>
+                    <td>
+                        <div style="display:flex;gap:6px;">
+                            <a href="{% url 'turno_editar' turno.pk %}" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                            <form method="POST" action="{% url 'turno_eliminar' turno.pk %}" onsubmit="return confirm('¿Eliminar este turno?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" style="text-align:center;padding:48px;color:var(--text-muted);">No hay turnos registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

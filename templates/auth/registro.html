@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurnoFácil — Crear cuenta</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f7f7f5;padding:24px;}
+        .card{background:#fff;border:1px solid #e8e6e1;border-radius:16px;padding:40px;width:100%;max-width:520px;box-shadow:0 4px 16px rgba(0,0,0,.06);}
+        .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+        .brand-icon{width:36px;height:36px;background:#1a1916;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;}
+        .brand-name{font-size:17px;font-weight:600;color:#1a1916;}
+        h1{font-size:22px;font-weight:600;letter-spacing:-.3px;margin-bottom:4px;}
+        .subtitle{font-size:13px;color:#a8a49e;margin-bottom:28px;}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+        .form-group{margin-bottom:16px;}
+        label{display:block;font-size:13px;font-weight:500;color:#6b6860;margin-bottom:5px;}
+        input, select{width:100%;padding:10px 14px;border:1px solid #e8e6e1;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:#1a1916;outline:none;transition:border-color .15s;background:#fff;-webkit-appearance:none;appearance:none;}
+        input:focus, select:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+        input.error-field, select.error-field{border-color:#dc2626;}
+        .error-msg{font-size:12px;color:#dc2626;margin-top:5px;display:flex;align-items:center;gap:4px;}
+        .error-msg i{font-size:12px;}
+        .error-box{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#dc2626;}
+        .error-box ul{padding-left:18px;margin-top:6px;}
+        .section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:#a8a49e;margin-bottom:14px;margin-top:8px;padding-bottom:8px;border-bottom:1px solid #e8e6e1;}
+        .btn{width:100%;padding:11px;background:#1a1916;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background .15s;margin-top:8px;}
+        .btn:hover{background:#2d2b27;}
+        .link{font-size:13px;color:#a8a49e;text-align:center;margin-top:18px;}
+        .link a{color:#2563eb;text-decoration:none;}
+        .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:13px;color:#1e40af;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;}
+        .hint{font-size:11px;color:#a8a49e;margin-top:4px;}
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="brand">
+        <div class="brand-icon"><i class="bi bi-calendar3"></i></div>
+        <span class="brand-name">TurnoFácil</span>
+    </div>
+    <h1>Crear cuenta</h1>
+    <p class="subtitle">Regístrate para solicitar turnos</p>
+
+    {% if form.errors %}
+    <div class="error-box">
+        <strong><i class="bi bi-exclamation-circle"></i> Por favor corrige los siguientes errores:</strong>
+        <ul>
+            {% for field in form %}
+                {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="POST" novalidate>
+        {% csrf_token %}
+
+        <div class="section-label">Datos personales</div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Nombre <span style="color:#dc2626">*</span></label>
+                <input type="text" name="first_name"
+                    class="{% if form.first_name.errors %}error-field{% endif %}"
+                    value="{{ form.first_name.value|default:'' }}"
+                    placeholder="Juan"
+                    oninput="soloLetras(this)">
+                {% for e in form.first_name.errors %}
+                <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                {% endfor %}
+                <div class="hint">Solo letras, sin números</div>
+            </div>
+            <div class="form-group">
+                <label>Apellido <span style="color:#dc2626">*</span></label>
+                <input type="text" name="last_name"
+                    class="{% if form.last_name.errors %}error-field{% endif %}"
+                    value="{{ form.last_name.value|default:'' }}"
+                    placeholder="Pérez"
+                    oninput="soloLetras(this)">
+                {% for e in form.last_name.errors %}
+                <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                {% endfor %}
+                <div class="hint">Solo letras, sin números</div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Usuario <span style="color:#dc2626">*</span></label>
+            <input type="text" name="username"
+                class="{% if form.username.errors %}error-field{% endif %}"
+                value="{{ form.username.value|default:'' }}"
+                placeholder="juan_perez">
+            {% for e in form.username.errors %}
+            <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label>Correo electrónico <span style="color:#dc2626">*</span></label>
+            <input type="email" name="email"
+                class="{% if form.email.errors %}error-field{% endif %}"
+                value="{{ form.email.value|default:'' }}"
+                placeholder="juan@correo.com">
+            {% for e in form.email.errors %}
+            <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="section-label">Documento de identidad</div>
+        <div class="info-box">
+            <i class="bi bi-info-circle" style="flex-shrink:0;margin-top:1px;"></i>
+            Tu documento se usará automáticamente al solicitar turnos.
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Tipo de documento <span style="color:#dc2626">*</span></label>
+                <select name="tipo_documento" class="{% if form.tipo_documento.errors %}error-field{% endif %}">
+                    <option value="">Seleccionar…</option>
+                    <option value="CC" {% if form.tipo_documento.value == 'CC' %}selected{% endif %}>Cédula de Ciudadanía</option>
+                    <option value="TI" {% if form.tipo_documento.value == 'TI' %}selected{% endif %}>Tarjeta de Identidad</option>
+                    <option value="CE" {% if form.tipo_documento.value == 'CE' %}selected{% endif %}>Cédula de Extranjería</option>
+                    <option value="Pasaporte" {% if form.tipo_documento.value == 'Pasaporte' %}selected{% endif %}>Pasaporte</option>
+                </select>
+                {% for e in form.tipo_documento.errors %}
+                <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                {% endfor %}
+            </div>
+            <div class="form-group">
+                <label>Número de documento <span style="color:#dc2626">*</span></label>
+                <input type="text" name="numero_documento"
+                    class="{% if form.numero_documento.errors %}error-field{% endif %}"
+                    value="{{ form.numero_documento.value|default:'' }}"
+                    placeholder="1234567890"
+                    oninput="soloNumeros(this)"
+                    inputmode="numeric">
+                {% for e in form.numero_documento.errors %}
+                <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                {% endfor %}
+                <div class="hint">Solo números, sin letras</div>
+            </div>
+        </div>
+
+        <div class="section-label">Contraseña</div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Contraseña <span style="color:#dc2626">*</span></label>
+                <input type="password" name="password1"
+                    class="{% if form.password1.errors %}error-field{% endif %}"
+                    placeholder="••••••••">
+                {% for e in form.password1.errors %}
+                <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                {% endfor %}
+            </div>
+            <div class="form-group">
+                <label>Confirmar <span style="color:#dc2626">*</span></label>
+                <input type="password" name="password2"
+                    class="{% if form.password2.errors %}error-field{% endif %}"
+                    placeholder="••••••••">
+                {% for e in form.password2.errors %}
+                <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn">Crear cuenta</button>
+    </form>
+    <div class="link">¿Ya tienes cuenta? <a href="{% url 'login' %}">Iniciar sesión</a></div>
+</div>
+
+<script>
+// Bloquear números en tiempo real en campos de nombre
+function soloLetras(input) {
+    input.value = input.value.replace(/[0-9]/g, '');
+}
+
+// Bloquear letras en tiempo real en campo de documento
+function soloNumeros(input) {
+    input.value = input.value.replace(/[^0-9]/g, '');
+}
+</script>
+</body>
+</html>
