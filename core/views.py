@@ -50,7 +50,7 @@ def registro_view(request):
     form = RegistroForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         user = form.save()
-        login(request, user)
+        login(request, user, backend='core.backends.EmailBackend')
         messages.success(request, f'¡Bienvenido, {user.first_name}!')
         return redirect('cliente_panel')
 

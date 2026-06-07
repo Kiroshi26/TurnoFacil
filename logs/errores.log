@@ -1,0 +1,25 @@
+[ERROR] 2026-04-12 06:52:57,564 log Internal Server Error: /registro/
+Traceback (most recent call last):
+  File "C:\turnofacil-django\venv\Lib\site-packages\django\contrib\auth\__init__.py", line 57, in _get_backend_from_user
+    backend = backend or user.backend
+                         ^^^^^^^^^^^^
+AttributeError: 'Usuario' object has no attribute 'backend'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\turnofacil-django\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\turnofacil-django\venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\turnofacil-django\core\views.py", line 53, in registro_view
+    login(request, user)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "C:\turnofacil-django\venv\Lib\site-packages\django\contrib\auth\__init__.py", line 189, in login
+    backend = _get_backend_from_user(user=user, backend=backend)
+  File "C:\turnofacil-django\venv\Lib\site-packages\django\contrib\auth\__init__.py", line 63, in _get_backend_from_user
+    raise ValueError(
+    ...<3 lines>...
+    )
+ValueError: You have multiple authentication backends configured and therefore must provide the `backend` argument or set the `backend` attribute on the user.
+[ERROR] 2026-04-12 06:52:57,572 log "POST /registro/ HTTP/1.1" 500 84341
