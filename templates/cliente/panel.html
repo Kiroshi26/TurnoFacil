@@ -1,58 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Mis Turnos{% block extra_js %}
-<script>
-// Polling cada 8 segundos para verificar si el turno fue llamado
-function verificarLlamado() {
-    fetch('/turnos/verificar-llamado/')
-    .then(r => r.json())
-    .then(data => {
-        if (data.llamado) {
-            // Notificación visual prominente
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;';
-            overlay.innerHTML = `
-                <div style="background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:360px;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:pop .3s ease;">
-                    <div style="font-size:48px;margin-bottom:16px;">📢</div>
-                    <div style="font-size:24px;font-weight:700;margin-bottom:8px;">${data.numero_turno}</div>
-                    <div style="font-size:15px;color:#6b6860;margin-bottom:28px;">${data.mensaje}</div>
-                    <button onclick="this.closest('[style*=fixed]').remove()"
-                        style="padding:12px 28px;background:#1a1916;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">
-                        Entendido
-                    </button>
-                </div>`;
-            document.body.appendChild(overlay);
-
-            // Sonido de notificación (tono suave)
-            try {
-                const ctx = new AudioContext();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = 880;
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-                osc.start(ctx.currentTime);
-                osc.stop(ctx.currentTime + 0.8);
-            } catch(e) {}
-        }
-    })
-    .catch(() => {});
-}
-
-// Iniciar polling solo si hay turnos pendientes
-if (parseInt(document.getElementById('panel-data').dataset.pendientes) > 0) {
-    setInterval(verificarLlamado, 8000);
-}
-
-// Animación del popup
-const style = document.createElement('style');
-style.textContent = '@keyframes pop { from { transform:scale(.8); opacity:0; } to { transform:scale(1); opacity:1; } }';
-document.head.appendChild(style);
-</script>
-{% endblock %}
-
-{% endblock %}
+{% block title %}Mis Turnos{% endblock %}
 {% block page_title %}Mis Turnos{% endblock %}
 {% block content %}
 <div id="panel-data" data-pendientes="{{ pendientes }}"></div>
@@ -150,4 +97,57 @@ document.head.appendChild(style);
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Polling cada 8 segundos para verificar si el turno fue llamado
+function verificarLlamado() {
+    fetch('/turnos/verificar-llamado/')
+    .then(r => r.json())
+    .then(data => {
+        if (data.llamado) {
+            // Notificación visual prominente
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;';
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:360px;box-shadow:0 24px 64px rgba(0,0,0,.3);animation:pop .3s ease;">
+                    <div style="font-size:48px;margin-bottom:16px;">📢</div>
+                    <div style="font-size:24px;font-weight:700;margin-bottom:8px;">${data.numero_turno}</div>
+                    <div style="font-size:15px;color:#6b6860;margin-bottom:28px;">${data.mensaje}</div>
+                    <button onclick="this.closest('[style*=fixed]').remove()"
+                        style="padding:12px 28px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">
+                        Entendido
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            // Sonido de notificación (tono suave)
+            try {
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.8);
+            } catch(e) {}
+        }
+    })
+    .catch(() => {});
+}
+
+// Iniciar polling solo si hay turnos pendientes
+if (parseInt(document.getElementById('panel-data').dataset.pendientes) > 0) {
+    setInterval(verificarLlamado, 8000);
+}
+
+// Animación del popup
+const style = document.createElement('style');
+style.textContent = '@keyframes pop { from { transform:scale(.8); opacity:0; } to { transform:scale(1); opacity:1; } }';
+document.head.appendChild(style);
+</script>
 {% endblock %}

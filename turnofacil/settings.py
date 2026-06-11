@@ -113,6 +113,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ── CONFIGURACIÓN DE CORREO (DESARROLLO) ──
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'TurnoFácil <no-reply@turnofacil.com>'
+
+
 # ── LOGGING ──
 LOGGING = {
     'version': 1,

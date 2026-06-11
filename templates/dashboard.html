@@ -1,40 +1,7 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard{% block extra_js_admin %}
-<script>
-function cambiarEstado(pk, estado, select) {
-    fetch('/turnos/' + pk + '/estado/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'estado=' + encodeURIComponent(estado)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.ok) {
-            const fila = select.closest('tr');
-            const badge = fila.querySelector('.badge');
-            if (badge) {
-                badge.className = 'badge badge-' + (estado === 'Pendiente' ? 'warning' : estado === 'Atendido' ? 'success' : 'danger');
-                badge.textContent = estado;
-            }
-            // Flash verde en la fila
-            fila.style.transition = 'background .3s';
-            fila.style.background = '#f0fdf4';
-            setTimeout(() => fila.style.background = '', 1500);
-        } else {
-            alert('Error al cambiar estado');
-            location.reload();
-        }
-    })
-    .catch(() => { alert('Error de conexión'); location.reload(); });
-}
-</script>
-{% endblock %}
-
-{% endblock %}
+{% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
+
 
 {% block content %}
 
@@ -125,6 +92,40 @@ function cambiarEstado(pk, estado, select) {
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cambiarEstado(pk, estado, select) {
+    fetch('/turnos/' + pk + '/estado/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'estado=' + encodeURIComponent(estado)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const fila = select.closest('tr');
+            const badge = fila.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge badge-' + (estado === 'Pendiente' ? 'warning' : estado === 'Atendido' ? 'success' : 'danger');
+                badge.textContent = estado;
+            }
+            // Flash verde suave en la fila
+            fila.style.transition = 'background .3s';
+            fila.style.background = '#f0fdf4';
+            setTimeout(() => fila.style.background = '', 1500);
+        } else {
+            alert('Error al cambiar estado');
+            location.reload();
+        }
+    })
+    .catch(() => { alert('Error de conexión'); location.reload(); });
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 var labels   = JSON.parse(document.getElementById('chart-labels').textContent);
@@ -139,10 +140,10 @@ new Chart(document.getElementById('chartSemana'), {
             {
                 label: 'Pendientes',
                 data: pendData,
-                borderColor: '#d97706',
-                backgroundColor: 'rgba(217,119,6,0.08)',
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245,158,11,0.08)',
                 borderWidth: 2,
-                pointBackgroundColor: '#d97706',
+                pointBackgroundColor: '#f59e0b',
                 pointRadius: 5,
                 pointHoverRadius: 7,
                 fill: true,
@@ -151,10 +152,10 @@ new Chart(document.getElementById('chartSemana'), {
             {
                 label: 'Atendidos',
                 data: atData,
-                borderColor: '#16a34a',
-                backgroundColor: 'rgba(22,163,74,0.08)',
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16,185,129,0.08)',
                 borderWidth: 2,
-                pointBackgroundColor: '#16a34a',
+                pointBackgroundColor: '#10b981',
                 pointRadius: 5,
                 pointHoverRadius: 7,
                 fill: true,
@@ -179,7 +180,7 @@ new Chart(document.getElementById('chartSemana'), {
                 grid: { display: false },
                 ticks: {
                     font: { family: "'DM Sans', sans-serif", size: 12 },
-                    color: '#a8a49e',
+                    color: '#94a3b8',
                     maxRotation: 0,
                     minRotation: 0
                 }
@@ -190,12 +191,11 @@ new Chart(document.getElementById('chartSemana'), {
                 ticks: {
                     stepSize: 1,
                     font: { family: "'DM Sans', sans-serif", size: 12 },
-                    color: '#a8a49e'
+                    color: '#94a3b8'
                 }
             }
         }
     }
 });
 </script>
-
 {% endblock %}

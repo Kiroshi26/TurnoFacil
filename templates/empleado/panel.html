@@ -1,35 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Mis Turnos{% block extra_js %}
-<script>
-function llamarTurno(pk, numero) {
-    if (!confirm('¿Llamar al turno ' + numero + '?')) return;
-
-    fetch('/turnos/' + pk + '/llamar/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.ok) {
-            // Mostrar alerta visual en el panel del empleado
-            const alerta = document.createElement('div');
-            alerta.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;background:#1a1916;color:#fff;padding:16px 22px;border-radius:12px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;';
-            alerta.innerHTML = '<i class="bi bi-megaphone-fill" style="color:#93b4fd;font-size:18px;"></i> Turno <strong>' + data.numero_turno + '</strong> llamado correctamente';
-            document.body.appendChild(alerta);
-            setTimeout(() => alerta.remove(), 4000);
-        } else {
-            alert('Error al llamar el turno: ' + (data.error || 'Intenta de nuevo'));
-        }
-    })
-    .catch(() => alert('Error de conexión'));
-}
-</script>
-{% endblock %}
-
-{% endblock %}
+{% block title %}Mis Turnos{% endblock %}
 {% block page_title %}Mis Turnos{% endblock %}
 {% block content %}
 
@@ -123,7 +93,7 @@ function llamarTurno(pk, numero) {
                             {% if turno.estado == 'Pendiente' %}
                             <button data-pk="{{ turno.pk }}" data-numero="{{ turno.numero_turno }}"
                                 onclick="llamarTurno(this.dataset.pk, this.dataset.numero)"
-                                class="btn btn-sm" style="background:#2563eb;color:#fff;border-color:#2563eb;">
+                                class="btn btn-sm" style="background:#6366f1;color:#fff;border-color:#6366f1;">
                                 <i class="bi bi-megaphone"></i> Llamar
                             </button>
                             {% endif %}
@@ -137,4 +107,34 @@ function llamarTurno(pk, numero) {
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function llamarTurno(pk, numero) {
+    if (!confirm('¿Llamar al turno ' + numero + '?')) return;
+
+    fetch('/turnos/' + pk + '/llamar/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            // Mostrar alerta visual en el panel del empleado
+            const alerta = document.createElement('div');
+            alerta.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;background:#0f172a;color:#fff;padding:16px 22px;border-radius:12px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;';
+            alerta.innerHTML = '<i class="bi bi-megaphone-fill" style="color:#818cf8;font-size:18px;"></i> Turno <strong>' + data.numero_turno + '</strong> llamado correctamente';
+            document.body.appendChild(alerta);
+            setTimeout(() => alerta.remove(), 4000);
+        } else {
+            alert('Error al llamar el turno: ' + (data.error || 'Intenta de nuevo'));
+        }
+    })
+    .catch(() => alert('Error de conexión'));
+}
+</script>
 {% endblock %}

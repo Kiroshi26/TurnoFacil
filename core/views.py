@@ -4,8 +4,10 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Count, Q
+from django.core.mail import send_mail
 from datetime import timedelta, date
 import io
+
 
 from .models import Usuario, Turno
 from .forms import (
@@ -114,9 +116,9 @@ def dashboard(request):
         'cancelados':      cancelados,
         'turnos_semana':   turnos_semana,
         'ultimos_turnos':  ultimos_turnos,
-        'chart_labels':    json.dumps([t['dia']       for t in turnos_semana]),
-        'chart_pendientes':json.dumps([t['pendiente'] for t in turnos_semana]),
-        'chart_atendidos': json.dumps([t['atendido']  for t in turnos_semana]),
+        'chart_labels':    [t['dia']       for t in turnos_semana],
+        'chart_pendientes':[t['pendiente'] for t in turnos_semana],
+        'chart_atendidos': [t['atendido']  for t in turnos_semana],
     })
 
 
@@ -472,11 +474,38 @@ def llamar_turno(request, pk):
             turno.llamado    = True
             turno.llamado_en = timezone.now()
             turno.save()
+
+            # Enviar notificación por correo electrónico al cliente
+            if turno.cliente.email:
+                try:
+                    subject = f"¡Tu turno {turno.numero_turno} ha sido llamado!"
+                    message = (
+                        f"Hola {turno.cliente.first_name or turno.cliente.username},\n\n"
+                        f"Tu turno con código {turno.numero_turno} ha sido llamado por el empleado "
+                        f"{request.user.get_full_name() or request.user.username}.\n"
+                        f"Por favor acércate al módulo de atención.\n\n"
+                        f"Detalles del turno:\n"
+                        f"- Motivo: {turno.motivo}\n"
+                        f"- Fecha: {turno.fecha.strftime('%d/%m/%Y')}\n"
+                        f"- Hora: {turno.hora}\n\n"
+                        f"¡Gracias por usar TurnoFácil!"
+                    )
+                    send_mail(
+                        subject,
+                        message,
+                        None,  # Usa DEFAULT_FROM_EMAIL
+                        [turno.cliente.email],
+                        fail_silently=False,
+                    )
+                except Exception as mail_error:
+                    logger.error('Error al enviar correo de notificación de turno: %s', str(mail_error), exc_info=True)
+
             return JsonResponse({'ok': True, 'numero_turno': turno.numero_turno})
         except Exception as e:
             logger.error('Error al llamar turno: %s', str(e), exc_info=True)
             return JsonResponse({'ok': False, 'error': str(e)}, status=500)
     return JsonResponse({'ok': False}, status=405)
+
 
 
 @login_requerido
