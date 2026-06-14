@@ -22,7 +22,8 @@
                         <input type="text" name="first_name"
                             class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
                             value="{{ form.first_name.value|default:'' }}"
-                            oninput="this.value=this.value.replace(/[0-9]/g,'')"
+                            oninput="this.value=this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s-]/g,'')"
+                            maxlength="100"
                             placeholder="Solo letras">
                         {% for e in form.first_name.errors %}
                         <div class="invalid-feedback" style="display:block;"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
@@ -33,7 +34,8 @@
                         <input type="text" name="last_name"
                             class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
                             value="{{ form.last_name.value|default:'' }}"
-                            oninput="this.value=this.value.replace(/[0-9]/g,'')"
+                            oninput="this.value=this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s-]/g,'')"
+                            maxlength="100"
                             placeholder="Solo letras">
                         {% for e in form.last_name.errors %}
                         <div class="invalid-feedback" style="display:block;"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
@@ -42,12 +44,19 @@
                 </div>
                 <div class="mb-4">
                     <label class="form-label">Usuario <span style="color:var(--danger)">*</span></label>
-                    <input type="text" name="username" class="form-control" value="{{ form.username.value|default:'' }}">
+                    <input type="text" name="username" class="form-control"
+                        value="{{ form.username.value|default:'' }}"
+                        maxlength="150"
+                        oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.-]/g,'')"
+                        placeholder="Usuario">
                     {% for e in form.username.errors %}<div class="invalid-feedback" style="display:block;">{{ e }}</div>{% endfor %}
                 </div>
                 <div class="mb-4">
                     <label class="form-label">Correo electrónico</label>
-                    <input type="email" name="email" class="form-control" value="{{ form.email.value|default:'' }}">
+                    <input type="email" name="email" class="form-control"
+                        value="{{ form.email.value|default:'' }}"
+                        maxlength="254"
+                        placeholder="usuario@correo.com">
                 </div>
                 <div class="mb-4">
                     <label class="form-label">Rol <span style="color:var(--danger)">*</span></label>
@@ -59,7 +68,9 @@
                 </div>
                 <div class="mb-4">
                     <label class="form-label">Contraseña {% if usuario %}(dejar vacío para no cambiar){% else %}<span style="color:var(--danger)">*</span>{% endif %}</label>
-                    <input type="password" name="password" class="form-control" placeholder="••••••••">
+                    <input type="password" name="password" class="form-control"
+                        maxlength="128"
+                        placeholder="••••••••">
                     {% for e in form.password.errors %}<div class="invalid-feedback" style="display:block;">{{ e }}</div>{% endfor %}
                 </div>
                 <div style="display:flex;gap:10px;padding-top:8px;border-top:1px solid var(--border);">
@@ -71,18 +82,20 @@
     </div>
 
     {% if usuario and usuario != user %}
-    <div style="margin-top:16px;" class="card" style="border-color:#fecaca;">
-        <div class="card-body" style="padding:20px 24px;border:1px solid #fecaca;border-radius:var(--radius);">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--danger);">Zona peligrosa</div>
-                    <div style="font-size:12px;color:var(--text-muted);">Eliminar permanentemente este usuario.</div>
+    <div style="margin-top:24px; border-top:1px dashed var(--border); padding-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+            <div>
+                <div style="font-size:13px;font-weight:600;color:var(--danger);display:flex;align-items:center;gap:6px;">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Acciones críticas
                 </div>
-                <form method="POST" action="{% url 'usuario_eliminar' usuario.pk %}" onsubmit="return confirm('¿Eliminar este usuario?')">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Eliminar</button>
-                </form>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Eliminar permanentemente este usuario. Esta acción no se puede deshacer.</div>
             </div>
+            <form method="POST" action="{% url 'usuario_eliminar' usuario.pk %}" onsubmit="return confirm('¿Eliminar este usuario?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm" style="border-color:rgba(248, 113, 113, 0.4); color:var(--danger);">
+                    <i class="bi bi-trash"></i> Eliminar usuario
+                </button>
+            </form>
         </div>
     </div>
     {% endif %}

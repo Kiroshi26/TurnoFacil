@@ -8,30 +8,31 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         *{box-sizing:border-box;margin:0;padding:0;}
-        body{font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:24px;}
-        .card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:40px;width:100%;max-width:520px;box-shadow:0 4px 16px rgba(0,0,0,.04);}
+        body{font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0f19;color:#f8fafc;padding:24px;}
+        .card{background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px;width:100%;max-width:520px;box-shadow:0 4px 16px rgba(0,0,0,.4);}
         .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
         .brand-icon{width:36px;height:36px;background:#6366f1;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;}
-        .brand-name{font-size:17px;font-weight:600;color:#0f172a;}
+        .brand-name{font-size:17px;font-weight:600;color:#f8fafc;}
         h1{font-size:22px;font-weight:600;letter-spacing:-.3px;margin-bottom:4px;}
         .subtitle{font-size:13px;color:#94a3b8;margin-bottom:28px;}
         .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
         .form-group{margin-bottom:16px;}
-        label{display:block;font-size:13px;font-weight:500;color:#475569;margin-bottom:5px;}
-        input, select{width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:#0f172a;outline:none;transition:border-color .15s;background:#fff;-webkit-appearance:none;appearance:none;}
-        input:focus, select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+        label{display:block;font-size:13px;font-weight:500;color:#94a3b8;margin-bottom:5px;}
+        input, select{width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:#f8fafc;outline:none;transition:border-color .15s;background:#0b0f19;-webkit-appearance:none;appearance:none;}
+        input:focus, select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15);}
         input.error-field, select.error-field{border-color:#ef4444;}
         .error-msg{font-size:12px;color:#ef4444;margin-top:5px;display:flex;align-items:center;gap:4px;}
         .error-msg i{font-size:12px;}
-        .error-box{background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#ef4444;}
+        .error-box{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#fca5a5;}
         .error-box ul{padding-left:18px;margin-top:6px;}
-        .section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:#94a3b8;margin-bottom:14px;margin-top:8px;padding-bottom:8px;border-bottom:1px solid #e2e8f0;}
-        .btn{width:100%;padding:11px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background .15s;margin-top:8px;}
-        .btn:hover{background:#1e293b;}
+        .section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:#94a3b8;margin-bottom:14px;margin-top:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);}
+        .btn{width:100%;padding:11px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background .15s;margin-top:8px;}
+        .btn:hover{background:#4f46e5;}
         .link{font-size:13px;color:#94a3b8;text-align:center;margin-top:18px;}
-        .link a{color:#6366f1;text-decoration:none;}
-        .info-box{background:#e0e7ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px 14px;font-size:13px;color:#4f46e5;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;}
-        .hint{font-size:11px;color:#94a3b8;margin-top:4px;}
+        .link a{color:#818cf8;text-decoration:none;}
+        .link a:hover{text-decoration:underline;}
+        .info-box{background:rgba(99,102,241,0.15);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 14px;font-size:13px;color:#818cf8;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;}
+        .hint{font-size:11px;color:#64748b;margin-top:4px;}
     </style>
 </head>
 <body>
@@ -70,11 +71,12 @@
                     class="{% if form.first_name.errors %}error-field{% endif %}"
                     value="{{ form.first_name.value|default:'' }}"
                     placeholder="Juan"
+                    maxlength="100"
                     oninput="soloLetras(this)">
                 {% for e in form.first_name.errors %}
                 <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
                 {% endfor %}
-                <div class="hint">Solo letras, sin números</div>
+                <div class="hint">Solo letras, sin números (Máx. 100 caracteres)</div>
             </div>
             <div class="form-group">
                 <label>Apellido <span style="color:#dc2626">*</span></label>
@@ -82,11 +84,12 @@
                     class="{% if form.last_name.errors %}error-field{% endif %}"
                     value="{{ form.last_name.value|default:'' }}"
                     placeholder="Pérez"
+                    maxlength="100"
                     oninput="soloLetras(this)">
                 {% for e in form.last_name.errors %}
                 <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
                 {% endfor %}
-                <div class="hint">Solo letras, sin números</div>
+                <div class="hint">Solo letras, sin números (Máx. 100 caracteres)</div>
             </div>
         </div>
         <div class="form-group">
@@ -94,17 +97,21 @@
             <input type="text" name="username"
                 class="{% if form.username.errors %}error-field{% endif %}"
                 value="{{ form.username.value|default:'' }}"
-                placeholder="juan_perez">
+                placeholder="juan_perez"
+                maxlength="150"
+                oninput="soloUsuario(this)">
             {% for e in form.username.errors %}
             <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
             {% endfor %}
+            <div class="hint">Letras, números y caracteres especiales @/./+/-/_ (Máx. 150 caracteres)</div>
         </div>
         <div class="form-group">
             <label>Correo electrónico <span style="color:#dc2626">*</span></label>
             <input type="email" name="email"
                 class="{% if form.email.errors %}error-field{% endif %}"
                 value="{{ form.email.value|default:'' }}"
-                placeholder="juan@correo.com">
+                placeholder="juan@correo.com"
+                maxlength="254">
             {% for e in form.email.errors %}
             <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
             {% endfor %}
@@ -135,12 +142,13 @@
                     class="{% if form.numero_documento.errors %}error-field{% endif %}"
                     value="{{ form.numero_documento.value|default:'' }}"
                     placeholder="1234567890"
+                    maxlength="30"
                     oninput="soloNumeros(this)"
                     inputmode="numeric">
                 {% for e in form.numero_documento.errors %}
                 <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
                 {% endfor %}
-                <div class="hint">Solo números, sin letras</div>
+                <div class="hint">Solo números, sin letras (Máx. 30 caracteres)</div>
             </div>
         </div>
 
@@ -150,6 +158,7 @@
                 <label>Contraseña <span style="color:#dc2626">*</span></label>
                 <input type="password" name="password1"
                     class="{% if form.password1.errors %}error-field{% endif %}"
+                    maxlength="128"
                     placeholder="••••••••">
                 {% for e in form.password1.errors %}
                 <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
@@ -159,6 +168,7 @@
                 <label>Confirmar <span style="color:#dc2626">*</span></label>
                 <input type="password" name="password2"
                     class="{% if form.password2.errors %}error-field{% endif %}"
+                    maxlength="128"
                     placeholder="••••••••">
                 {% for e in form.password2.errors %}
                 <div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
@@ -172,14 +182,19 @@
 </div>
 
 <script>
-// Bloquear números en tiempo real en campos de nombre
+// Bloquear todo lo que no sean letras y espacios
 function soloLetras(input) {
-    input.value = input.value.replace(/[0-9]/g, '');
+    input.value = input.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s-]/g, '');
 }
 
-// Bloquear letras en tiempo real en campo de documento
+// Bloquear todo lo que no sean números
 function soloNumeros(input) {
     input.value = input.value.replace(/[^0-9]/g, '');
+}
+
+// Bloquear caracteres especiales no permitidos en usernames
+function soloUsuario(input) {
+    input.value = input.value.replace(/[^a-zA-Z0-9_.-]/g, '');
 }
 </script>
 </body>

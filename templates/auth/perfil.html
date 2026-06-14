@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Editar Perfil{% endblock %}
+{% block page_title %}Editar Perfil{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:24px;">
+        <span style="color:var(--text-muted);">Usuario</span>
+        <i class="bi bi-chevron-right" style="font-size:11px;"></i>
+        <span style="color:var(--text-primary);">Editar perfil</span>
+    </div>
+
+    <div class="card">
+        <div style="padding:24px 28px 20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:16px;font-weight:600;">Editar información del perfil</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:3px;">
+                Mantén actualizada tu información de contacto y documento de identidad.
+            </div>
+        </div>
+
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                {% include 'partials/form_errors.html' %}
+
+                {% for field in form %}
+                <div class="mb-4">
+                    <label class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color:var(--danger)">*</span>{% endif %}
+                    </label>
+                    
+                    {% if field.field.widget.input_type == 'select' %}
+                    <select name="{{ field.html_name }}" class="form-select {% if field.errors %}is-invalid{% endif %}">
+                        {% for val, lbl in field.field.choices %}
+                        <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                    {% elif field.html_name == 'first_name' or field.html_name == 'last_name' %}
+                    <input type="text"
+                           name="{{ field.html_name }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           value="{{ field.value|default:'' }}"
+                           oninput="this.value=this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s-]/g,'')"
+                           maxlength="100"
+                           placeholder="Solo letras">
+                    {% elif field.html_name == 'numero_documento' %}
+                    <input type="text"
+                           name="{{ field.html_name }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           value="{{ field.value|default:'' }}"
+                           oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                           maxlength="30"
+                           inputmode="numeric"
+                           placeholder="Solo números">
+                    {% elif field.html_name == 'email' %}
+                    <input type="email"
+                           name="{{ field.html_name }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           value="{{ field.value|default:'' }}"
+                           maxlength="254"
+                           placeholder="usuario@correo.com">
+                    {% else %}
+                    <input type="{% if field.field.widget.input_type %}{{ field.field.widget.input_type }}{% else %}text{% endif %}"
+                           name="{{ field.html_name }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           value="{{ field.value|default:'' }}"
+                           {% for k, v in field.field.widget.attrs.items %}{{ k }}="{{ v }}" {% endfor %}>
+                    {% endif %}
+                    
+                    {% if field.help_text %}
+                    <div class="hint" style="font-size:11px;color:var(--text-muted);margin-top:4px;">{{ field.help_text }}</div>
+                    {% endif %}
+                    
+                    {% for error in field.errors %}
+                    <div class="invalid-feedback" style="display:block;">
+                        <i class="bi bi-exclamation-circle"></i> {{ error }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+
+                <div style="display:flex;gap:10px;padding-top:8px;border-top:1px solid var(--border);">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check2"></i> Guardar cambios
+                    </button>
+                    {% if user.rol == 'admin' %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancelar</a>
+                    {% elif user.rol == 'empleado' %}
+                    <a href="{% url 'empleado_panel' %}" class="btn btn-secondary">Cancelar</a>
+                    {% else %}
+                    <a href="{% url 'cliente_panel' %}" class="btn btn-secondary">Cancelar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

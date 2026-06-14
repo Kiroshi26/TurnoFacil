@@ -14,7 +14,7 @@
 </div>
 
 {% if proximo_turno %}
-<div style="background:var(--text-primary);border-radius:var(--radius);padding:28px 32px;color:#fff;margin-bottom:24px;position:relative;overflow:hidden;">
+<div style="background:linear-gradient(135deg,#4f46e5,#6366f1);border-radius:var(--radius);padding:28px 32px;color:#fff;margin-bottom:24px;position:relative;overflow:hidden;">
     <div style="position:absolute;right:-50px;top:-50px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(255,255,255,.07);pointer-events:none;"></div>
     <div style="position:relative;z-index:1;">
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.45);margin-bottom:14px;">Próximo turno asignado</div>
@@ -124,10 +124,10 @@ function llamarTurno(pk, numero) {
     .then(r => r.json())
     .then(data => {
         if (data.ok) {
-            // Mostrar alerta visual en el panel del empleado
-            const alerta = document.createElement('div');
-            alerta.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;background:#0f172a;color:#fff;padding:16px 22px;border-radius:12px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;';
-            alerta.innerHTML = '<i class="bi bi-megaphone-fill" style="color:#818cf8;font-size:18px;"></i> Turno <strong>' + data.numero_turno + '</strong> llamado correctamente';
+             // Mostrar alerta visual en el panel del empleado
+             const alerta = document.createElement('div');
+             alerta.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;background:var(--surface);border:1px solid var(--border);color:var(--text-primary);padding:16px 22px;border-radius:12px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;';
+             alerta.innerHTML = '<i class="bi bi-megaphone-fill" style="color:#818cf8;font-size:18px;"></i> Turno <strong>' + data.numero_turno + '</strong> llamado correctamente';
             document.body.appendChild(alerta);
             setTimeout(() => alerta.remove(), 4000);
         } else {

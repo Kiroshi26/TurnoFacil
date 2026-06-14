@@ -61,7 +61,10 @@
                 <input type="email" name="email" placeholder="usuario@correo.com" autofocus value="{{ form.email.value|default:'' }}">
             </div>
             <div class="form-group">
-                <label>Contraseña</label>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <label style="margin-bottom:0;">Contraseña</label>
+                    <a href="{% url 'password_reset' %}" style="font-size:12px;color:#818cf8;text-decoration:none;">¿La olvidaste?</a>
+                </div>
                 <input type="password" name="password" placeholder="••••••••">
             </div>
             <button type="submit" class="btn-submit">Iniciar sesión</button>

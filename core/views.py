@@ -12,7 +12,7 @@ import io
 from .models import Usuario, Turno
 from .forms import (
     LoginForm, RegistroForm, UsuarioAdminForm,
-    TurnoForm, TurnoClienteForm, TurnoEmpleadoForm
+    TurnoForm, TurnoClienteForm, TurnoEmpleadoForm, PerfilForm
 )
 from .decorators import solo_admin, solo_cliente, solo_empleado, login_requerido
 import logging
@@ -79,7 +79,7 @@ def _redirect_por_rol(user):
 @login_requerido
 @solo_admin
 def dashboard(request):
-    hoy = timezone.now().date()
+    hoy = timezone.localtime(timezone.now()).date()
 
     total_usuarios = Usuario.objects.count()
     total_turnos   = Turno.objects.count()
@@ -449,7 +449,7 @@ def cliente_panel(request):
     cancelados    = turnos.filter(estado='Cancelado').count()
     proximo_turno = turnos.filter(
         estado='Pendiente',
-        fecha__gte=timezone.now().date()
+        fecha__gte=timezone.localtime(timezone.now()).date()
     ).order_by('fecha', 'hora').first()
 
     return render(request, 'cliente/panel.html', {
@@ -515,7 +515,7 @@ def verificar_llamado(request):
         cliente=request.user,
         estado='Pendiente',
         llamado=True,
-        fecha=timezone.now().date()
+        fecha=timezone.localtime(timezone.now()).date()
     ).order_by('-llamado_en').first()
 
     if turno:
@@ -562,10 +562,11 @@ def empleado_panel(request):
     pendientes    = turnos.filter(estado='Pendiente').count()
     atendidos     = turnos.filter(estado='Atendido').count()
     cancelados    = turnos.filter(estado='Cancelado').count()
-    turnos_hoy    = turnos.filter(fecha=timezone.now().date()).count()
+    hoy_local     = timezone.localtime(timezone.now()).date()
+    turnos_hoy    = turnos.filter(fecha=hoy_local).count()
     proximo_turno = turnos.filter(
         estado='Pendiente',
-        fecha__gte=timezone.now().date()
+        fecha__gte=hoy_local
     ).order_by('fecha', 'hora').first()
 
     return render(request, 'empleado/panel.html', {
@@ -576,3 +577,20 @@ def empleado_panel(request):
         'turnos_hoy':    turnos_hoy,
         'proximo_turno': proximo_turno,
     })
+
+
+@login_requerido
+def editar_perfil(request):
+    user = request.user
+    form = PerfilForm(request.POST or None, instance=user)
+
+    if request.method == 'POST' and form.is_valid():
+        try:
+            form.save()
+            messages.success(request, 'Perfil actualizado correctamente.')
+            return _redirect_por_rol(user)
+        except Exception as e:
+            logger.error('Error al actualizar perfil: %s', str(e), exc_info=True)
+            messages.error(request, f'Error al actualizar el perfil: {str(e)}')
+
+    return render(request, 'auth/perfil.html', {'form': form})

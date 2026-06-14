@@ -82,6 +82,7 @@
                            class="form-control {% if field.errors %}is-invalid{% endif %}"
                            value="{{ field.value|default:'' }}"
                            oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                           maxlength="30"
                            inputmode="numeric"
                            placeholder="Solo números"
                            {% for k, v in field.field.widget.attrs.items %}{{ k }}="{{ v }}" {% endfor %}>
@@ -90,6 +91,7 @@
                            name="{{ field.html_name }}"
                            class="form-control {% if field.errors %}is-invalid{% endif %}"
                            value="{{ field.value|default:'' }}"
+                           maxlength="200"
                            placeholder="Describe el motivo de tu visita"
                            {% for k, v in field.field.widget.attrs.items %}{{ k }}="{{ v }}" {% endfor %}>
                     {% else %}
@@ -129,20 +131,20 @@
     </div>
 
     {% if turno %}
-    <div style="margin-top:16px;">
-        <div class="card" style="border-color:#fecaca;">
-            <div class="card-body" style="padding:20px 24px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                    <div>
-                        <div style="font-size:13px;font-weight:600;color:var(--danger);">Zona peligrosa</div>
-                        <div style="font-size:12px;color:var(--text-muted);">Eliminar permanentemente este turno.</div>
-                    </div>
-                    <form method="POST" action="{% url 'turno_eliminar' turno.pk %}" onsubmit="return confirm('¿Eliminar? Esta acción no se puede deshacer.')">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Eliminar</button>
-                    </form>
+    <div style="margin-top:24px; border-top:1px dashed var(--border); padding-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+            <div>
+                <div style="font-size:13px;font-weight:600;color:var(--danger);display:flex;align-items:center;gap:6px;">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Acciones críticas
                 </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Eliminar permanentemente este turno. Esta acción no se puede deshacer.</div>
             </div>
+            <form method="POST" action="{% url 'turno_eliminar' turno.pk %}" onsubmit="return confirm('¿Eliminar? Esta acción no se puede deshacer.')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm" style="border-color:rgba(248, 113, 113, 0.4); color:var(--danger);">
+                    <i class="bi bi-trash"></i> Eliminar turno
+                </button>
+            </form>
         </div>
     </div>
     {% endif %}

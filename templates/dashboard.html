@@ -116,7 +116,7 @@ function cambiarEstado(pk, estado, select) {
             }
             // Flash verde suave en la fila
             fila.style.transition = 'background .3s';
-            fila.style.background = '#f0fdf4';
+            fila.style.background = 'rgba(52, 211, 153, 0.15)';
             setTimeout(() => fila.style.background = '', 1500);
         } else {
             alert('Error al cambiar estado');
@@ -133,7 +133,7 @@ var pendData = JSON.parse(document.getElementById('chart-pendientes').textConten
 var atData   = JSON.parse(document.getElementById('chart-atendidos').textContent);
 
 new Chart(document.getElementById('chartSemana'), {
-    type: 'line',
+    type: 'bar',
     data: {
         labels: labels,
         datasets: [
@@ -141,25 +141,17 @@ new Chart(document.getElementById('chartSemana'), {
                 label: 'Pendientes',
                 data: pendData,
                 borderColor: '#f59e0b',
-                backgroundColor: 'rgba(245,158,11,0.08)',
-                borderWidth: 2,
-                pointBackgroundColor: '#f59e0b',
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                fill: true,
-                tension: 0.4
+                backgroundColor: 'rgba(245,158,11,0.2)',
+                borderWidth: 1.5,
+                borderRadius: 4
             },
             {
                 label: 'Atendidos',
                 data: atData,
                 borderColor: '#10b981',
-                backgroundColor: 'rgba(16,185,129,0.08)',
-                borderWidth: 2,
-                pointBackgroundColor: '#10b981',
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                fill: true,
-                tension: 0.4
+                backgroundColor: 'rgba(16,185,129,0.2)',
+                borderWidth: 1.5,
+                borderRadius: 4
             }
         ]
     },
@@ -187,7 +179,7 @@ new Chart(document.getElementById('chartSemana'), {
             },
             y: {
                 beginAtZero: true,
-                grid: { color: 'rgba(0,0,0,0.05)' },
+                grid: { color: 'rgba(255,255,255,0.05)' },
                 ticks: {
                     stepSize: 1,
                     font: { family: "'DM Sans', sans-serif", size: 12 },

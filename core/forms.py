@@ -121,7 +121,7 @@ class TurnoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.usuario = kwargs.pop('usuario', None)
         super().__init__(*args, **kwargs)
-        hoy    = timezone.now().date()
+        hoy    = timezone.localtime(timezone.now()).date()
         maxdia = hoy + timedelta(days=7)
         self.fields['fecha'].widget.attrs.update({
             'min': hoy.strftime('%Y-%m-%d'),
@@ -161,8 +161,8 @@ class TurnoForm(forms.ModelForm):
         hora    = cleaned.get('hora')
 
         if fecha and hora:
-            hoy   = timezone.now().date()
             ahora = timezone.localtime(timezone.now())
+            hoy   = ahora.date()
 
             if fecha < hoy:
                 raise forms.ValidationError('La fecha no puede ser en el pasado.')
@@ -211,3 +211,30 @@ class TurnoEmpleadoForm(forms.ModelForm):
         self.fields['empleado'].required    = False
         self.fields['empleado'].label       = 'Empleado asignado'
         self.fields['empleado'].empty_label = 'Sin asignar'
+
+
+class PerfilForm(forms.ModelForm):
+    first_name       = forms.CharField(label='Nombre', max_length=100, validators=[validar_solo_letras])
+    last_name        = forms.CharField(label='Apellido', max_length=100, validators=[validar_solo_letras])
+    email            = forms.EmailField(label='Correo electrónico')
+    tipo_documento   = forms.ChoiceField(
+        label='Tipo de documento',
+        choices=[('', 'Seleccionar…')] + [
+            ('CC', 'Cédula de Ciudadanía'),
+            ('TI', 'Tarjeta de Identidad'),
+            ('CE', 'Cédula de Extranjería'),
+            ('Pasaporte', 'Pasaporte'),
+        ],
+        required=False
+    )
+    numero_documento = forms.CharField(label='Número de documento', max_length=30, required=False)
+
+    class Meta:
+        model  = Usuario
+        fields = ['first_name', 'last_name', 'email', 'tipo_documento', 'numero_documento']
+
+    def clean_numero_documento(self):
+        valor = self.cleaned_data.get('numero_documento', '')
+        if valor:
+            validar_solo_numeros(valor)
+        return valor
