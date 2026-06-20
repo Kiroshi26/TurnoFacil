@@ -5,8 +5,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-turnofacil-change-this-in-production'
 
+<<<<<<< HEAD
 DEBUG = True
 
+=======
+DEBUG = os.environ.get("DEBUG", "False") == "True"
+>>>>>>> faf665f (Primer despliegue Railway)
 ALLOWED_HOSTS = ['*']
 
 # ── APPS ──
@@ -22,6 +26,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+<<<<<<< HEAD
+=======
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+>>>>>>> faf665f (Primer despliegue Railway)
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -53,12 +61,33 @@ WSGI_APPLICATION = 'turnofacil.wsgi.application'
 
 # ── BASE DE DATOS SQLite (temporal) ──
 # Cuando actualices MariaDB a 10.6+, reemplaza por la configuración MySQL de abajo
+<<<<<<< HEAD
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+=======
+if os.environ.get("PGDATABASE"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("PGDATABASE"),
+            "USER": os.environ.get("PGUSER"),
+            "PASSWORD": os.environ.get("PGPASSWORD"),
+            "HOST": os.environ.get("PGHOST"),
+            "PORT": os.environ.get("PGPORT"),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+>>>>>>> faf665f (Primer despliegue Railway)
 
 # ── BASE DE DATOS MySQL (activar cuando tengas MariaDB 10.6+) ──
 # DATABASES = {
