@@ -38,12 +38,14 @@
 <div class="card" style="margin-bottom:24px;">
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <div>
-            <div style="font-size:14px;font-weight:600;">Turnos últimos 7 días</div>
+            <div style="font-size:14px;font-weight:600;">Turnos próximos 7 días</div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Pendientes vs Atendidos</div>
         </div>
     </div>
     <div style="padding:24px 24px 16px;">
-        <canvas id="chartSemana" style="width:100%;height:260px;"></canvas>
+        <div style="position:relative; height:260px; width:100%;">
+            <canvas id="chartSemana"></canvas>
+        </div>
     </div>
 </div>
 
@@ -157,15 +159,14 @@ new Chart(document.getElementById('chartSemana'), {
     },
     options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
             tooltip: {
                 callbacks: {
                     title: function(items) { return items[0].label; }
                 }
-            },
-            datalabels: false
+            }
         },
         scales: {
             x: {

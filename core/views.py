@@ -241,8 +241,8 @@ def dashboard(request):
                 7:'Jul',8:'Ago',9:'Sep',10:'Oct',11:'Nov',12:'Dic'}
     dias_es  = {0:'Lun',1:'Mar',2:'Mié',3:'Jue',4:'Vie',5:'Sáb',6:'Dom'}
     
-    for i in range(6, -1, -1):
-        dia = hoy - timedelta(days=i)
+    for i in range(7):
+        dia = hoy + timedelta(days=i)
         etiqueta = f"{dias_es[dia.weekday()]} {dia.day}"
         turnos_semana.append({
             'dia':      etiqueta,
