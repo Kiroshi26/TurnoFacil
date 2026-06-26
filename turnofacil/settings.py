@@ -3,12 +3,10 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-turnofacil-change-this-in-production'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-turnofacil-change-this-in-production')
 
-DEBUG = True
-
-DEBUG = os.environ.get("DEBUG", "False") == "True"
-ALLOWED_HOSTS = ['*']
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # ── APPS ──
 INSTALLED_APPS = [
@@ -53,14 +51,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'turnofacil.wsgi.application'
 
-# ── BASE DE DATOS SQLite (temporal) ──
-# Cuando actualices MariaDB a 10.6+, reemplaza por la configuración MySQL de abajo
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# ── CONFIGURACIÓN DE BASE DE DATOS DINÁMICA ──
+# Conecta a PostgreSQL, MySQL o SQLite dinámicamente según variables de entorno.
 if os.environ.get("PGDATABASE"):
     DATABASES = {
         "default": {
@@ -72,29 +64,28 @@ if os.environ.get("PGDATABASE"):
             "PORT": os.environ.get("PGPORT"),
         }
     }
-else:
+elif os.environ.get('MYSQLHOST') or os.environ.get('DB_HOST'):
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('MYSQLDATABASE') or os.environ.get('DB_NAME', 'turnofacil'),
+            'USER': os.environ.get('MYSQLUSER') or os.environ.get('DB_USER', 'root'),
+            'PASSWORD': os.environ.get('MYSQLPASSWORD') or os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('MYSQLHOST') or os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('MYSQLPORT') or os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
         }
     }
-
-# ── BASE DE DATOS MySQL (activar cuando tengas MariaDB 10.6+) ──
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'turnofacil',
-#         'USER': 'root',
-#         'PASSWORD': '',
-#         'HOST': 'localhost',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-#         },
-#     }
-# }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ── MODELO DE USUARIO PERSONALIZADO ──
 AUTH_USER_MODEL = 'core.Usuario'

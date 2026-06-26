@@ -5,20 +5,162 @@ from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Count, Q
 from django.core.mail import send_mail
-from datetime import timedelta, date
+from django.core.exceptions import PermissionDenied
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import ListView, CreateView
+from django.urls import reverse_lazy
+from datetime import timedelta, datetime
 import io
-
-
-from .models import Usuario, Turno
-from .forms import (
-    LoginForm, RegistroForm, UsuarioAdminForm,
-    TurnoForm, TurnoClienteForm, TurnoEmpleadoForm, PerfilForm
-)
-from .decorators import solo_admin, solo_cliente, solo_empleado, login_requerido
 import logging
 import json
 
-logger = logging.getLogger('core')
+from .models import Usuario, Turno, Company
+from .forms import (
+    LoginForm, RegistroForm, TurnoForm, PerfilForm, generar_horas_empresa
+)
+from .decorators import solo_admin, solo_cliente, solo_empleado, login_requerido
+
+logger = logging.getLogger(__name__)
+
+# ══════════════════════════════════════════
+# MIXIN DE SEGURIDAD (Row Level Security Lógico)
+# ══════════════════════════════════════════
+
+class TenantSecurityMixin(LoginRequiredMixin):
+    """
+    Mixin para garantizar el aislamiento de datos en Class-Based Views.
+    Superusuarios acceden a todo; administradores y empleados ven solo su empresa;
+    usuarios sin empresa asignada son rechazados.
+    """
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # 1. Acceso completo para el Administrador Global
+        if self.request.user.is_superuser:
+            return queryset
+            
+        # 2. Los clientes ven el queryset base (luego se filtra por su usuario)
+        if self.request.user.rol == 'cliente':
+            return queryset
+            
+        # 3. Denegar acceso si no tiene empresa asignada
+        if not self.request.user.company:
+            raise PermissionDenied(
+                "Acceso Denegado: No tienes una empresa (Tenant) asignada a tu perfil."
+            )
+            
+        # 4. Filtrar por la empresa del usuario
+        return queryset.filter(company=self.request.user.company)
+
+
+# Ejemplos de uso del TenantSecurityMixin para vistas basadas en clases
+class TurnoListView(TenantSecurityMixin, ListView):
+    """
+    Ejemplo de vista CBV para listar turnos con RLS.
+    """
+    model = Turno
+    template_name = 'turnos/lista_cbv.html'
+    context_object_name = 'turnos'
+
+
+# ══════════════════════════════════════════
+# CLASES AUXILIARES DE REPORTE
+# ══════════════════════════════════════════
+
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+
+class NumberedCanvas(canvas.Canvas):
+    """
+    Canvas personalizado para ReportLab que permite calcular y renderizar
+    dinámicamente el número total de páginas en el pie de página de los reportes.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_number(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_page_number(self, page_count):
+        self.saveState()
+        self.setFont("Helvetica", 8)
+        self.setFillColor(colors.HexColor('#6b7280'))
+        
+        self.setStrokeColor(colors.HexColor('#e2e8f0'))
+        self.setLineWidth(0.5)
+        
+        width, height = self._pagesize
+        margin = 1.5 * 28.34645
+        
+        self.line(margin, 1.2 * 28.34645, width - margin, 1.2 * 28.34645)
+        
+        page_text = f"Página {self._pageNumber} de {page_count}"
+        self.drawRightString(width - margin, 0.8 * 28.34645, page_text)
+        self.drawString(margin, 0.8 * 28.34645, "TurnoFácil — Reporte oficial de sistema")
+        self.restoreState()
+
+
+# ══════════════════════════════════════════
+# FUNCIÓN AUXILIAR DE SEGURIDAD PARA FBVs
+# ══════════════════════════════════════════
+
+def secure_tenant_filter(user, queryset_or_model):
+    """
+    Aplica las reglas de aislamiento para Function-Based Views.
+    Retorna el QuerySet filtrado o levanta PermissionDenied.
+    """
+    if user.is_superuser:
+        if isinstance(queryset_or_model, type):
+            return queryset_or_model.objects.all()
+        return queryset_or_model
+
+    # Los clientes no están asociados a ninguna empresa; ven todo el set base
+    # y su privacidad se maneja filtrando por su propio usuario (e.g. cliente=user).
+    if user.rol == 'cliente':
+        if isinstance(queryset_or_model, type):
+            return queryset_or_model.objects.all()
+        return queryset_or_model
+
+    if not user.company:
+        raise PermissionDenied("Acceso Denegado: No tienes una empresa asignada.")
+
+    if isinstance(queryset_or_model, type):
+        return queryset_or_model.objects.filter(company=user.company)
+    return queryset_or_model.filter(company=user.company)
+
+
+# ══════════════════════════════════════════
+# API ENDPOINTS PARA AJAX (DISPONIBILIDAD Y EMPLEADOS POR TENANT)
+# ══════════════════════════════════════════
+
+def get_company_hours(request, company_id):
+    """
+    Endpoint AJAX que retorna la lista de horarios disponibles según el tenant.
+    """
+    try:
+        comp = Company.objects.get(pk=company_id)
+        choices = generar_horas_empresa(comp)
+        return JsonResponse({'hours': [c[0] for c in choices]})
+    except Company.DoesNotExist:
+        return JsonResponse({'hours': []}, status=404)
+
+def get_company_employees(request, company_id):
+    """
+    Endpoint AJAX que retorna los empleados asignados a un tenant específico.
+    """
+    employees = Usuario.objects.filter(company_id=company_id, rol='empleado')
+    data = [{'id': emp.id, 'name': emp.get_full_name() or emp.username} for emp in employees]
+    return JsonResponse({'employees': data})
 
 
 # ══════════════════════════════════════════
@@ -65,7 +207,7 @@ def logout_view(request):
 
 
 def _redirect_por_rol(user):
-    if user.rol == 'admin':
+    if user.is_superuser or user.rol == 'admin':
         return redirect('dashboard')
     if user.rol == 'empleado':
         return redirect('empleado_panel')
@@ -73,38 +215,43 @@ def _redirect_por_rol(user):
 
 
 # ══════════════════════════════════════════
-# DASHBOARD ADMIN
+# DASHBOARD ADMIN (Con Aislamiento Tenant)
 # ══════════════════════════════════════════
 
 @login_requerido
 @solo_admin
 def dashboard(request):
+    user = request.user
     hoy = timezone.localtime(timezone.now()).date()
 
-    total_usuarios = Usuario.objects.count()
-    total_turnos   = Turno.objects.count()
-    turnos_hoy     = Turno.objects.filter(fecha=hoy).count()
-    total_empleados= Usuario.objects.filter(rol='empleado').count()
-    pendientes     = Turno.objects.filter(estado='Pendiente').count()
-    atendidos      = Turno.objects.filter(estado='Atendido').count()
-    cancelados     = Turno.objects.filter(estado='Cancelado').count()
+    # Querysets base protegidos por empresa (excepto para superusuarios)
+    usuarios_qs = secure_tenant_filter(user, Usuario)
+    turnos_qs = secure_tenant_filter(user, Turno)
 
-    # Últimos 7 días para gráfica
+    total_usuarios = usuarios_qs.count()
+    total_turnos   = turnos_qs.count()
+    turnos_hoy     = turnos_qs.filter(fecha=hoy).count()
+    total_empleados= usuarios_qs.filter(rol='empleado').count()
+    pendientes     = turnos_qs.filter(estado='Pendiente').count()
+    atendidos      = turnos_qs.filter(estado='Atendido').count()
+    cancelados     = turnos_qs.filter(estado='Cancelado').count()
+
     turnos_semana = []
     meses_es = {1:'Ene',2:'Feb',3:'Mar',4:'Abr',5:'May',6:'Jun',
                 7:'Jul',8:'Ago',9:'Sep',10:'Oct',11:'Nov',12:'Dic'}
     dias_es  = {0:'Lun',1:'Mar',2:'Mié',3:'Jue',4:'Vie',5:'Sáb',6:'Dom'}
+    
     for i in range(6, -1, -1):
         dia = hoy - timedelta(days=i)
         etiqueta = f"{dias_es[dia.weekday()]} {dia.day}"
         turnos_semana.append({
             'dia':      etiqueta,
-            'total':    Turno.objects.filter(fecha=dia).count(),
-            'pendiente':Turno.objects.filter(fecha=dia, estado='Pendiente').count(),
-            'atendido': Turno.objects.filter(fecha=dia, estado='Atendido').count(),
+            'total':    turnos_qs.filter(fecha=dia).count(),
+            'pendiente':turnos_qs.filter(fecha=dia, estado='Pendiente').count(),
+            'atendido': turnos_qs.filter(fecha=dia, estado='Atendido').count(),
         })
 
-    ultimos_turnos = Turno.objects.select_related('cliente', 'empleado').order_by('-creado_en')[:5]
+    ultimos_turnos = turnos_qs.select_related('cliente', 'empleado').order_by('-creado_en')[:5]
 
     return render(request, 'dashboard.html', {
         'total_usuarios':  total_usuarios,
@@ -123,16 +270,18 @@ def dashboard(request):
 
 
 # ══════════════════════════════════════════
-# TURNOS (ADMIN)
+# TURNOS (ADMIN - Con Aislamiento Tenant)
 # ══════════════════════════════════════════
 
 @login_requerido
 @solo_admin
 def turnos_lista(request):
-    turnos = Turno.objects.select_related('cliente', 'empleado').all()
+    user = request.user
+    turnos = secure_tenant_filter(user, Turno).select_related('cliente', 'empleado')
 
     q      = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
+    
     if q:
         turnos = turnos.filter(
             Q(numero_turno__icontains=q) |
@@ -161,19 +310,29 @@ def turno_crear(request):
     user = request.user
 
     if request.method == 'POST':
-        # Para clientes, inyectar documento del perfil en el POST
         data = request.POST.copy()
-        if user.rol == 'cliente':
+        if user.rol == 'cliente' and not user.is_superuser:
             data['tipo_documento']   = user.tipo_documento or ''
             data['numero_documento'] = user.numero_documento or ''
-        form = TurnoForm(data, usuario=user)
+        form = TurnoForm(data, user=user)
     else:
-        form = TurnoForm(usuario=user)
+        form = TurnoForm(user=user)
 
     if request.method == 'POST' and form.is_valid():
         try:
             turno = form.save(commit=False)
-            turno.cliente = user
+            if user.rol == 'cliente' and not user.is_superuser:
+                turno.cliente = user
+                turno.company = form.cleaned_data['company']
+            elif user.is_superuser:
+                # El superusuario asocia el turno a la empresa elegida en el formulario
+                turno.company = form.cleaned_data['company']
+            else:
+                # Para administradores y empleados de empresa, se asocia automáticamente a su empresa
+                if not user.company:
+                    raise PermissionDenied("El usuario no tiene una empresa asignada.")
+                turno.company = user.company
+            
             turno.save()
             messages.success(request, 'Turno creado correctamente.')
             return _redirect_por_rol(user)
@@ -186,26 +345,18 @@ def turno_crear(request):
 
 @login_requerido
 def turno_editar(request, pk):
-    turno = get_object_or_404(Turno, pk=pk)
     user  = request.user
+    
+    # Obtener el turno y validar que pertenezca al inquilino correspondiente
+    turnos_qs = secure_tenant_filter(user, Turno)
+    turno = get_object_or_404(turnos_qs, pk=pk)
 
-    # Permisos
-    if user.rol == 'cliente' and turno.cliente != user:
+    # Validaciones adicionales basadas en el rol
+    if user.rol == 'cliente' and not user.is_superuser and turno.cliente != user:
         messages.error(request, 'No tienes permiso para editar este turno.')
         return redirect('cliente_panel')
-    if user.rol == 'empleado' and turno.empleado != user:
-        messages.error(request, 'No tienes permiso para editar este turno.')
-        return redirect('empleado_panel')
 
-    # Formulario según rol
-    if user.rol == 'cliente':
-        FormClass = TurnoClienteForm
-    elif user.rol == 'empleado':
-        FormClass = TurnoEmpleadoForm
-    else:
-        FormClass = TurnoForm
-
-    form = FormClass(request.POST or None, instance=turno)
+    form = TurnoForm(request.POST or None, instance=turno, user=user)
     if request.method == 'POST' and form.is_valid():
         try:
             form.save()
@@ -224,10 +375,11 @@ def turno_editar(request, pk):
 
 @login_requerido
 def turno_eliminar(request, pk):
-    turno = get_object_or_404(Turno, pk=pk)
     user  = request.user
+    turnos_qs = secure_tenant_filter(user, Turno)
+    turno = get_object_or_404(turnos_qs, pk=pk)
 
-    if user.rol == 'cliente' and turno.cliente != user:
+    if user.rol == 'cliente' and not user.is_superuser and turno.cliente != user:
         messages.error(request, 'No tienes permiso.')
         return redirect('cliente_panel')
 
@@ -244,20 +396,24 @@ def turno_eliminar(request, pk):
     return render(request, 'turnos/confirmar_eliminar.html', {'turno': turno})
 
 
+# ══════════════════════════════════════════
+# REPORTES PDF (Con Aislamiento Tenant)
+# ══════════════════════════════════════════
+
 @login_requerido
 @solo_admin
 def turnos_pdf(request):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import cm
 
-    # Aplicar los mismos filtros que la lista
+    user = request.user
     q      = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
 
-    turnos = Turno.objects.select_related('cliente', 'empleado').all()
+    turnos = secure_tenant_filter(user, Turno).select_related('cliente', 'empleado')
     if q:
         turnos = turnos.filter(
             Q(numero_turno__icontains=q) |
@@ -268,65 +424,142 @@ def turnos_pdf(request):
         turnos = turnos.filter(estado=estado)
 
     buffer = io.BytesIO()
-    doc    = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=1.5*cm, rightMargin=1.5*cm)
-    styles = getSampleStyleSheet()
+    doc    = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=1.5*cm,
+        rightMargin=1.5*cm,
+        topMargin=1.5*cm,
+        bottomMargin=2.0*cm
+    )
     story  = []
 
-    # Título con filtros aplicados
+    style_title = ParagraphStyle(
+        'DocTitle',
+        fontName='Helvetica-Bold',
+        fontSize=20,
+        leading=24,
+        textColor=colors.HexColor('#111827'),
+    )
+    style_meta_right = ParagraphStyle(
+        'DocMetaRight',
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=13,
+        textColor=colors.HexColor('#4b5563'),
+        alignment=2
+    )
+    
+    hdr_style = ParagraphStyle('HdrText', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=1)
+    cell_style = ParagraphStyle('CellText', fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#1f2937'), leading=11)
+    cell_code = ParagraphStyle('CellCode', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#4f46e5'), leading=11)
+    
     filtros_txt = []
     if q:      filtros_txt.append(f'Búsqueda: {q}')
     if estado: filtros_txt.append(f'Estado: {estado}')
-    filtros_str = ' | '.join(filtros_txt) if filtros_txt else 'Sin filtros'
+    filtros_str = ' | '.join(filtros_txt) if filtros_txt else 'Ninguno'
 
-    story.append(Paragraph('TurnoFácil — Reporte de Turnos', styles['Title']))
-    story.append(Paragraph(f'Generado: {timezone.now().strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
-    story.append(Paragraph(f'Filtros aplicados: {filtros_str}', styles['Normal']))
-    story.append(Paragraph(f'Total de registros: {turnos.count()}', styles['Normal']))
-    story.append(Spacer(1, 0.5*cm))
+    empresa_txt = user.company.name if user.company else 'Global / Administrador'
 
-    # Tabla
-    datos = [['N° Turno', 'Tipo Doc.', 'N° Documento', 'Motivo', 'Fecha', 'Hora', 'Estado', 'Empleado']]
+    header_data = [
+        [
+            Paragraph(f'<font color="#4f46e5"><b>Turno</b></font><b>Fácil</b><font color="#94a3b8"><b> | </b></font><font color="#111827">Turnos de {empresa_txt}</font>', style_title),
+            Paragraph(f'<b>Generado:</b> {timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")}<br/><b>Total:</b> {turnos.count()} registros<br/><b>Filtros:</b> {filtros_str}', style_meta_right)
+        ]
+    ]
+    header_table = Table(header_data, colWidths=[16.7*cm, 10.0*cm])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('PADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 0.1*cm))
+
+    divider = Table([['']], colWidths=[26.7*cm], rowHeights=[2.5])
+    divider.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#4f46e5')),
+        ('PADDING', (0,0), (-1,-1), 0),
+    ]))
+    story.append(divider)
+    story.append(Spacer(1, 0.4*cm))
+
+    def make_estado_badge(text, text_color, bg_color):
+        badge_style = ParagraphStyle(
+            'BadgeText', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor(text_color), alignment=1
+        )
+        p = Paragraph(text, badge_style)
+        t = Table([[p]], colWidths=[2.2*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor(bg_color)),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
+            ('TOPPADDING', (0,0), (-1,-1), 2.5),
+        ]))
+        return t
+
+    headers = [
+        Paragraph('N° Turno', hdr_style),
+        Paragraph('Tipo Doc.', hdr_style),
+        Paragraph('N° Documento', hdr_style),
+        Paragraph('Motivo', hdr_style),
+        Paragraph('Fecha', hdr_style),
+        Paragraph('Hora', hdr_style),
+        Paragraph('Estado', hdr_style),
+        Paragraph('Empleado', hdr_style)
+    ]
+    datos = [headers]
+    
     for t in turnos:
+        if t.estado == 'Atendido':
+            est_badge = make_estado_badge('Atendido', '#059669', '#d1fae5')
+        elif t.estado == 'Cancelado':
+            est_badge = make_estado_badge('Cancelado', '#dc2626', '#fee2e2')
+        else:
+            est_badge = make_estado_badge('Pendiente', '#d97706', '#fef3c7')
+
         datos.append([
-            t.numero_turno,
-            t.tipo_documento,
-            t.numero_documento,
-            t.motivo[:30] + '...' if len(t.motivo) > 30 else t.motivo,
-            t.fecha.strftime('%d/%m/%Y'),
-            t.hora,
-            t.estado,
-            t.empleado.get_full_name() if t.empleado else '—',
+            Paragraph(t.numero_turno, cell_code),
+            Paragraph(t.tipo_documento, cell_style),
+            Paragraph(t.numero_documento, cell_style),
+            Paragraph(t.motivo, cell_style),
+            Paragraph(t.fecha.strftime('%d/%m/%Y'), cell_style),
+            Paragraph(t.hora, cell_style),
+            est_badge,
+            Paragraph(t.empleado.get_full_name() if t.empleado else '—', cell_style),
         ])
 
-    tabla = Table(datos, repeatRows=1)
+    col_widths = [2.5*cm, 2.2*cm, 3.0*cm, 7.0*cm, 2.5*cm, 2.0*cm, 3.0*cm, 4.5*cm]
+    tabla = Table(datos, repeatRows=1, colWidths=col_widths)
     tabla.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1916')),
-        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0, 0), (-1, 0), 10),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f7f7f5')]),
-        ('FONTSIZE',   (0, 1), (-1, -1), 9),
-        ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#e8e6e1')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4f46e5')),
+        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
-        ('PADDING',    (0, 0), (-1, -1), 6),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     story.append(tabla)
-    doc.build(story)
-
+    
+    doc.build(story, canvasmaker=NumberedCanvas)
     buffer.seek(0)
     return HttpResponse(buffer, content_type='application/pdf',
                         headers={'Content-Disposition': 'attachment; filename="turnos.pdf"'})
 
 
 # ══════════════════════════════════════════
-# USUARIOS (ADMIN)
+# USUARIOS (ADMIN - Con Aislamiento Tenant)
 # ══════════════════════════════════════════
 
 @login_requerido
 @solo_admin
 def usuarios_lista(request):
+    user = request.user
     q        = request.GET.get('q', '')
-    usuarios = Usuario.objects.all()
+    usuarios = secure_tenant_filter(user, Usuario)
+    
     if q:
         usuarios = usuarios.filter(
             Q(first_name__icontains=q) |
@@ -339,12 +572,17 @@ def usuarios_lista(request):
 @login_requerido
 @solo_admin
 def usuario_crear(request):
-    form = UsuarioAdminForm(request.POST or None)
+    from .forms import UsuarioForm
+    user = request.user
+    
+    form = UsuarioForm(request.POST or None, user=user)
     if request.method == 'POST' and form.is_valid():
         try:
-            user = form.save(commit=False)
-            user.set_password(form.cleaned_data['password'])
-            user.save()
+            nuevo_usuario = form.save(commit=False)
+            # Obligar que el usuario creado pertenezca a la misma empresa del admin
+            if not user.is_superuser:
+                nuevo_usuario.company = user.company
+            nuevo_usuario.save()
             messages.success(request, 'Usuario creado correctamente.')
             return redirect('usuarios_lista')
         except Exception as e:
@@ -356,8 +594,12 @@ def usuario_crear(request):
 @login_requerido
 @solo_admin
 def usuario_editar(request, pk):
-    usuario = get_object_or_404(Usuario, pk=pk)
-    form    = UsuarioAdminForm(request.POST or None, instance=usuario)
+    from .forms import UsuarioForm
+    user = request.user
+    usuarios_qs = secure_tenant_filter(user, Usuario)
+    usuario = get_object_or_404(usuarios_qs, pk=pk)
+    
+    form = UsuarioForm(request.POST or None, instance=usuario, user=user)
     if request.method == 'POST' and form.is_valid():
         try:
             form.save()
@@ -372,10 +614,14 @@ def usuario_editar(request, pk):
 @login_requerido
 @solo_admin
 def usuario_eliminar(request, pk):
-    usuario = get_object_or_404(Usuario, pk=pk)
+    user = request.user
+    usuarios_qs = secure_tenant_filter(user, Usuario)
+    usuario = get_object_or_404(usuarios_qs, pk=pk)
+    
     if request.user == usuario:
         messages.error(request, 'No puedes eliminarte a ti mismo.')
         return redirect('usuarios_lista')
+        
     if request.method == 'POST':
         try:
             usuario.delete()
@@ -385,6 +631,7 @@ def usuario_eliminar(request, pk):
             logger.error('Error al eliminar el usuario: %s', str(e), exc_info=True)
             messages.error(request, f'Error al eliminar el usuario: {str(e)}')
             return redirect('usuarios_lista')
+            
     return render(request, 'usuarios/confirmar_eliminar.html', {'usuario': usuario})
 
 
@@ -394,59 +641,128 @@ def usuarios_pdf(request):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import cm
 
-    usuarios = Usuario.objects.all()
+    user = request.user
+    usuarios = secure_tenant_filter(user, Usuario).order_by('-date_joined')
     buffer   = io.BytesIO()
-    doc      = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm)
-    styles   = getSampleStyleSheet()
+    
+    doc      = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=1.5*cm,
+        rightMargin=1.5*cm,
+        topMargin=1.5*cm,
+        bottomMargin=2.0*cm
+    )
     story    = []
 
-    story.append(Paragraph('TurnoFácil — Reporte de Usuarios', styles['Title']))
-    story.append(Paragraph(f'Generado: {timezone.now().strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
-    story.append(Spacer(1, 0.5*cm))
+    style_title = ParagraphStyle(
+        'DocTitle', fontName='Helvetica-Bold', fontSize=20, leading=24, textColor=colors.HexColor('#111827'),
+    )
+    style_meta_right = ParagraphStyle(
+        'DocMetaRight', fontName='Helvetica', fontSize=8.5, leading=13, textColor=colors.HexColor('#4b5563'), alignment=2
+    )
+    
+    hdr_style = ParagraphStyle('HdrText', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=1)
+    cell_style = ParagraphStyle('CellText', fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#1f2937'), leading=11)
+    
+    empresa_txt = user.company.name if user.company else 'Global / Administrador'
 
-    datos = [['Nombre', 'Correo', 'Rol', 'Fecha registro']]
+    header_data = [
+        [
+            Paragraph(f'<font color="#4f46e5"><b>Turno</b></font><b>Fácil</b><font color="#94a3b8"><b> | </b></font><font color="#111827">Usuarios de {empresa_txt}</font>', style_title),
+            Paragraph(f'<b>Generado:</b> {timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")}<br/><b>Total:</b> {usuarios.count()} usuarios', style_meta_right)
+        ]
+    ]
+    header_table = Table(header_data, colWidths=[11.0*cm, 7.0*cm])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('PADDING', (0,0), (-1,-1), 0),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 0.1*cm))
+
+    divider = Table([['']], colWidths=[18.0*cm], rowHeights=[2.5])
+    divider.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#4f46e5')),
+        ('PADDING', (0,0), (-1,-1), 0),
+    ]))
+    story.append(divider)
+    story.append(Spacer(1, 0.4*cm))
+
+    def make_rol_badge(text, text_color, bg_color):
+        badge_style = ParagraphStyle(
+            'BadgeText', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor(text_color), alignment=1
+        )
+        p = Paragraph(text, badge_style)
+        t = Table([[p]], colWidths=[2.6*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor(bg_color)),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
+            ('TOPPADDING', (0,0), (-1,-1), 2.5),
+        ]))
+        return t
+
+    headers = [
+        Paragraph('Nombre', hdr_style),
+        Paragraph('Correo', hdr_style),
+        Paragraph('Rol', hdr_style),
+        Paragraph('Fecha registro', hdr_style)
+    ]
+    datos = [headers]
+    
     for u in usuarios:
+        if u.rol == 'admin':
+            rol_badge = make_rol_badge('Administrador', '#7e22ce', '#f3e8ff')
+        elif u.rol == 'empleado':
+            rol_badge = make_rol_badge('Empleado', '#1d4ed8', '#dbeafe')
+        else:
+            rol_badge = make_rol_badge('Cliente', '#475569', '#f1f5f9')
+
         datos.append([
-            u.get_full_name() or u.username,
-            u.email,
-            u.get_rol_display(),
-            u.date_joined.strftime('%d/%m/%Y'),
+            Paragraph(u.get_full_name() or u.username, cell_style),
+            Paragraph(u.email, cell_style),
+            rol_badge,
+            Paragraph(u.date_joined.strftime('%d/%m/%Y'), cell_style),
         ])
 
-    tabla = Table(datos, repeatRows=1, colWidths=[5*cm, 7*cm, 3*cm, 3.5*cm])
+    col_widths = [5.0*cm, 6.5*cm, 3.0*cm, 3.5*cm]
+    tabla = Table(datos, repeatRows=1, colWidths=col_widths)
     tabla.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1916')),
-        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f7f7f5')]),
-        ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#e8e6e1')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4f46e5')),
+        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
-        ('PADDING',    (0, 0), (-1, -1), 6),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#cbd5e1')),
     ]))
     story.append(tabla)
-    doc.build(story)
-
+    
+    doc.build(story, canvasmaker=NumberedCanvas)
     buffer.seek(0)
     return HttpResponse(buffer, content_type='application/pdf',
                         headers={'Content-Disposition': 'attachment; filename="usuarios.pdf"'})
 
 
 # ══════════════════════════════════════════
-# PANEL CLIENTE
+# PANEL CLIENTE (Con Aislamiento Tenant)
 # ══════════════════════════════════════════
 
 @login_requerido
 @solo_cliente
 def cliente_panel(request):
     user  = request.user
-    turnos = Turno.objects.filter(cliente=user).order_by('-creado_en')
+    
+    # Si el cliente pertenece a una empresa, asegurar que sólo interactúe con sus turnos de esa empresa
+    turnos = secure_tenant_filter(user, Turno).filter(cliente=user).order_by('-creado_en')
 
     pendientes    = turnos.filter(estado='Pendiente').count()
     atendidos     = turnos.filter(estado='Atendido').count()
     cancelados    = turnos.filter(estado='Cancelado').count()
+    
     proximo_turno = turnos.filter(
         estado='Pendiente',
         fecha__gte=timezone.localtime(timezone.now()).date()
@@ -462,20 +778,26 @@ def cliente_panel(request):
 
 
 # ══════════════════════════════════════════
-# LLAMAR TURNO (EMPLEADO)
+# LLAMAR TURNO (EMPLEADO - Con Aislamiento Tenant)
 # ══════════════════════════════════════════
 
 @login_requerido
 @solo_empleado
 def llamar_turno(request, pk):
-    turno = get_object_or_404(Turno, pk=pk, empleado=request.user)
+    # Validar que el turno pertenezca a la empresa del empleado
+    turnos_qs = secure_tenant_filter(request.user, Turno)
+    # Solo permite llamar si está asignado a sí mismo o no tiene empleado asignado (None)
+    turno = get_object_or_404(turnos_qs, Q(empleado=request.user) | Q(empleado__isnull=True), pk=pk)
+    
     if request.method == 'POST':
         try:
+            # Auto-asignarse al turno si no estaba asignado
+            if not turno.empleado:
+                turno.empleado = request.user
             turno.llamado    = True
             turno.llamado_en = timezone.now()
             turno.save()
 
-            # Enviar notificación por correo electrónico al cliente
             if turno.cliente.email:
                 try:
                     subject = f"¡Tu turno {turno.numero_turno} ha sido llamado!"
@@ -493,12 +815,12 @@ def llamar_turno(request, pk):
                     send_mail(
                         subject,
                         message,
-                        None,  # Usa DEFAULT_FROM_EMAIL
+                        None,
                         [turno.cliente.email],
                         fail_silently=False,
                     )
                 except Exception as mail_error:
-                    logger.error('Error al enviar correo de notificación de turno: %s', str(mail_error), exc_info=True)
+                    logger.error('Error al enviar correo de notificación: %s', str(mail_error), exc_info=True)
 
             return JsonResponse({'ok': True, 'numero_turno': turno.numero_turno})
         except Exception as e:
@@ -507,19 +829,19 @@ def llamar_turno(request, pk):
     return JsonResponse({'ok': False}, status=405)
 
 
-
 @login_requerido
 def verificar_llamado(request):
-    """El cliente hace polling para saber si su turno fue llamado."""
-    turno = Turno.objects.filter(
-        cliente=request.user,
+    user = request.user
+    # Asegurar que verificamos el llamado en la empresa correspondiente
+    turnos_qs = secure_tenant_filter(user, Turno)
+    turno = turnos_qs.filter(
+        cliente=user,
         estado='Pendiente',
         llamado=True,
         fecha=timezone.localtime(timezone.now()).date()
     ).order_by('-llamado_en').first()
 
     if turno:
-        # Marcar como visto para no volver a notificar
         turno.llamado = False
         turno.save()
         return JsonResponse({
@@ -533,9 +855,9 @@ def verificar_llamado(request):
 @login_requerido
 @solo_admin
 def cambiar_estado_turno(request, pk):
-    """El admin puede cambiar estado directamente desde el dashboard."""
     if request.method == 'POST':
-        turno  = get_object_or_404(Turno, pk=pk)
+        turnos_qs = secure_tenant_filter(request.user, Turno)
+        turno  = get_object_or_404(turnos_qs, pk=pk)
         estado = request.POST.get('estado')
         if estado in ['Pendiente', 'Atendido', 'Cancelado']:
             try:
@@ -550,20 +872,23 @@ def cambiar_estado_turno(request, pk):
 
 
 # ══════════════════════════════════════════
-# PANEL EMPLEADO
+# PANEL EMPLEADO (Con Aislamiento Tenant)
 # ══════════════════════════════════════════
 
 @login_requerido
 @solo_empleado
 def empleado_panel(request):
     user  = request.user
-    turnos = Turno.objects.filter(empleado=user).select_related('cliente').order_by('fecha', 'hora')
+    
+    # Filtrar turnos por empresa
+    turnos = secure_tenant_filter(user, Turno).select_related('cliente', 'empleado').order_by('fecha', 'hora')
 
     pendientes    = turnos.filter(estado='Pendiente').count()
     atendidos     = turnos.filter(estado='Atendido').count()
     cancelados    = turnos.filter(estado='Cancelado').count()
     hoy_local     = timezone.localtime(timezone.now()).date()
     turnos_hoy    = turnos.filter(fecha=hoy_local).count()
+    
     proximo_turno = turnos.filter(
         estado='Pendiente',
         fecha__gte=hoy_local
@@ -593,4 +918,4 @@ def editar_perfil(request):
             logger.error('Error al actualizar perfil: %s', str(e), exc_info=True)
             messages.error(request, f'Error al actualizar el perfil: {str(e)}')
 
-    return render(request, 'auth/perfil.html', {'form': form})
+    return render(request, 'auth/perfil.html', {'form': form})

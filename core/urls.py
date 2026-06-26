@@ -65,4 +65,8 @@ urlpatterns = [
     path('turnos/<int:pk>/llamar/',    views.llamar_turno,         name='llamar_turno'),
     path('turnos/verificar-llamado/',  views.verificar_llamado,    name='verificar_llamado'),
     path('turnos/<int:pk>/estado/',    views.cambiar_estado_turno, name='cambiar_estado_turno'),
+
+    # ── API AJAX para Multi-Tenant ──
+    path('api/company-hours/<int:company_id>/', views.get_company_hours, name='get_company_hours'),
+    path('api/company-employees/<int:company_id>/', views.get_company_employees, name='get_company_employees'),
 ]

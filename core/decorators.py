@@ -20,9 +20,10 @@ def rol_requerido(*roles):
         def wrapper(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect('login')
-            if request.user.rol not in roles:
-                return render(request, '403.html', status=403)
-            return view_func(request, *args, **kwargs)
+            # Superusuario bypasses role constraints
+            if request.user.is_superuser or request.user.rol in roles:
+                return view_func(request, *args, **kwargs)
+            return render(request, '403.html', status=403)
         return wrapper
     return decorator
 

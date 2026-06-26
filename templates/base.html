@@ -99,7 +99,7 @@
 
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-        <a href="{% url 'dashboard' %}" class="brand">
+        <a href="{% if user.is_superuser or user.rol == 'admin' %}{% url 'dashboard' %}{% elif user.rol == 'empleado' %}{% url 'empleado_panel' %}{% else %}{% url 'cliente_panel' %}{% endif %}" class="brand">
             <div class="brand-icon"><i class="bi bi-calendar3"></i></div>
             <div>
                 <div class="brand-name">TurnoFácil</div>

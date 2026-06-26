@@ -28,7 +28,7 @@
         <div style="padding:24px 28px 20px;border-bottom:1px solid var(--border);">
             <div style="font-size:16px;font-weight:600;">{{ accion }} turno</div>
             <div style="font-size:13px;color:var(--text-muted);margin-top:3px;">
-                {% if user.rol == 'cliente' and turno %}Puedes cambiar la hora y el empleado asignado
+                {% if user.rol == 'cliente' and turno %}Puedes cambiar los datos de tu turno
                 {% elif user.rol == 'empleado' and turno %}Puedes cambiar fecha, hora, empleado y estado
                 {% else %}Completa los datos del turno{% endif %}
             </div>
@@ -154,6 +154,8 @@
 <script>
 const fechaInput = document.querySelector('input[name="fecha"]');
 const horaSelect = document.querySelector('select[name="hora"]');
+const companySelect = document.querySelector('select[name="company"]');
+const empleadoSelect = document.querySelector('select[name="empleado"]');
 
 function actualizarHoras() {
     if (!fechaInput || !horaSelect) return;
@@ -166,10 +168,53 @@ function actualizarHoras() {
         const [h, m]  = opt.value.split(':').map(Number);
         const esPasada= fechaInput.value === hoy && (h * 60 + m) < minTotal;
         opt.disabled  = esPasada;
-        opt.text      = opt.value + (esPasada ? ' (no disponible)' : '');
+        opt.text      = opt.value.replace(' (no disponible)', '') + (esPasada ? ' (no disponible)' : '');
     });
     if (horaSelect.selectedOptions[0]?.disabled) horaSelect.value = '';
 }
+
+function cargarDatosPorEmpresa(companyId) {
+    if (!companyId) {
+        if (horaSelect) {
+            horaSelect.innerHTML = '<option value="">Selecciona una empresa primero</option>';
+        }
+        if (empleadoSelect) {
+            empleadoSelect.innerHTML = '<option value="">Selecciona una empresa primero</option>';
+        }
+        return;
+    }
+
+    // Fetch hours
+    fetch(`/api/company-hours/${companyId}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (horaSelect) {
+                let html = '<option value="">Selecciona una hora...</option>';
+                data.hours.forEach(h => {
+                    html += `<option value="${h}">${h}</option>`;
+                });
+                horaSelect.innerHTML = html;
+                actualizarHoras();
+            }
+        });
+
+    // Fetch employees
+    fetch(`/api/company-employees/${companyId}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (empleadoSelect) {
+                let html = '<option value="">Sin asignar</option>';
+                data.employees.forEach(emp => {
+                    html += `<option value="${emp.id}">${emp.name}</option>`;
+                });
+                empleadoSelect.innerHTML = html;
+            }
+        });
+}
+
+companySelect?.addEventListener('change', (e) => {
+    cargarDatosPorEmpresa(e.target.value);
+});
 
 fechaInput?.addEventListener('change', actualizarHoras);
 actualizarHoras();

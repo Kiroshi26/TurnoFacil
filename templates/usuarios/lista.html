@@ -26,7 +26,7 @@
     <div class="table-wrap" style="max-height:calc(100vh - 280px);overflow-y:auto;">
         <table>
             <thead>
-                <tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Registrado</th><th>Acciones</th></tr>
+                <tr><th>Usuario</th><th>Empresa</th><th>Correo</th><th>Rol</th><th>Registrado</th><th>Acciones</th></tr>
             </thead>
             <tbody>
                 {% for u in usuarios %}
@@ -42,6 +42,7 @@
                             </div>
                         </div>
                     </td>
+                    <td style="color:var(--text-secondary);font-size:13px;font-weight:500;">{{ u.company.name|default:"Global / Super Admin" }}</td>
                     <td style="color:var(--text-secondary);font-size:13px;">{{ u.email }}</td>
                     <td>
                         <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;

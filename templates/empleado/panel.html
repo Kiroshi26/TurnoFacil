@@ -66,13 +66,13 @@
 
 <div class="card">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);">
-        <div style="font-size:14px;font-weight:600;">Turnos asignados</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Todos los turnos donde eres el empleado asignado</div>
+        <div style="font-size:14px;font-weight:600;">Turnos de la empresa</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Todos los turnos de tu empresa</div>
     </div>
     <div class="table-wrap">
         <table>
             <thead>
-                <tr><th>N° Turno</th><th>Cliente</th><th>Documento</th><th>Motivo</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Acciones</th></tr>
+                <tr><th>N° Turno</th><th>Cliente</th><th>Documento</th><th>Motivo</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Empleado</th><th>Acciones</th></tr>
             </thead>
             <tbody>
                 {% for turno in turnos %}
@@ -87,6 +87,7 @@
                     <td style="font-size:13px;">{{ turno.fecha|date:"d/m/Y" }}</td>
                     <td style="font-size:13px;">{{ turno.hora }}</td>
                     <td><span class="badge badge-{% if turno.estado == 'Pendiente' %}warning{% elif turno.estado == 'Atendido' %}success{% else %}danger{% endif %}">{{ turno.estado }}</span></td>
+                    <td style="font-size:13px;color:var(--text-secondary);">{{ turno.empleado.get_full_name|default:"Sin asignar" }}</td>
                     <td>
                         <div style="display:flex;gap:6px;flex-wrap:wrap;">
                             <a href="{% url 'turno_editar' turno.pk %}" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i> Editar</a>

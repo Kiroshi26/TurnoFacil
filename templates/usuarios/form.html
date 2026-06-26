@@ -66,6 +66,16 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% if form.company %}
+                <div class="mb-4">
+                    <label class="form-label">Empresa</label>
+                    <select name="company" class="form-select">
+                        {% for val, lbl in form.fields.company.choices %}
+                        <option value="{{ val }}" {% if form.company.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="mb-4">
                     <label class="form-label">Contraseña {% if usuario %}(dejar vacío para no cambiar){% else %}<span style="color:var(--danger)">*</span>{% endif %}</label>
                     <input type="password" name="password" class="form-control"

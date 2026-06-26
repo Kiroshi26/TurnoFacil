@@ -52,12 +52,13 @@
     <div class="table-wrap">
         <table>
             <thead>
-                <tr><th>N° Turno</th><th>Tipo Doc.</th><th>N° Documento</th><th>Motivo</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Empleado</th><th>Acciones</th></tr>
+                <tr><th>N° Turno</th><th>Empresa</th><th>Tipo Doc.</th><th>N° Documento</th><th>Motivo</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Empleado</th><th>Acciones</th></tr>
             </thead>
             <tbody>
                 {% for turno in turnos %}
                 <tr>
                     <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);">{{ turno.numero_turno }}</td>
+                    <td style="font-size:13px;color:var(--text-secondary);font-weight:500;">{{ turno.company.name }}</td>
                     <td style="font-size:12px;color:var(--text-muted);">{{ turno.tipo_documento }}</td>
                     <td style="font-weight:500;">{{ turno.numero_documento }}</td>
                     <td style="font-size:13px;color:var(--text-secondary);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ turno.motivo }}</td>
