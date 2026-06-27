@@ -3,6 +3,25 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Cargar variables de entorno desde .env si existe (sin dependencias externas)
+env_path = BASE_DIR / '.env'
+if env_path.exists():
+    with open(env_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, val = line.split('=', 1)
+                os.environ.setdefault(key.strip(), val.strip())
+
+# Omitir validación de versión de base de datos para soporte con MariaDB < 10.6 (e.g. XAMPP 10.4)
+from django.db.backends.base.base import BaseDatabaseWrapper
+BaseDatabaseWrapper.check_database_version_supported = lambda self: None
+
+# Desactivar cláusula RETURNING en INSERTs para compatibilidad con MariaDB < 10.5
+from django.db.backends.mysql.features import DatabaseFeatures
+DatabaseFeatures.can_return_columns_from_insert = False
+DatabaseFeatures.can_return_rows_from_bulk_insert = False
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-turnofacil-change-this-in-production')
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
