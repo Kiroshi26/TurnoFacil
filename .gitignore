@@ -1,0 +1,15 @@
+# Entornos y Configuración
+.env
+datos_db.json
+
+# Base de Datos SQLite Local
+db.sqlite3
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+staticfiles/
+media/
+.pytest_cache/
+logs/
