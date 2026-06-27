@@ -61,6 +61,20 @@
                 </div>
                 {% endif %}
 
+                {% if user.rol != 'cliente' and turno %}
+                <!-- Datos del cliente en modo lectura al editar para empleados/admins -->
+                <div style="background:var(--surface-2);border-radius:var(--radius-sm);padding:16px 18px;margin-bottom:24px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);">Cliente</div>
+                        <div style="font-size:13px;font-weight:500;">{{ turno.cliente.get_full_name }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);">Documento</div>
+                        <div style="font-size:13px;font-weight:500;">{{ turno.tipo_documento }} · {{ turno.numero_documento }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
                 {% for field in form %}
                 {% if field.is_hidden %}
                     {{ field }}
@@ -184,6 +198,9 @@ function cargarDatosPorEmpresa(companyId) {
         return;
     }
 
+    const selectedHora = horaSelect ? horaSelect.value : '';
+    const selectedEmpleado = empleadoSelect ? empleadoSelect.value : '';
+
     // Fetch hours
     fetch(`/api/company-hours/${companyId}/`)
         .then(res => res.json())
@@ -191,7 +208,8 @@ function cargarDatosPorEmpresa(companyId) {
             if (horaSelect) {
                 let html = '<option value="">Selecciona una hora...</option>';
                 data.hours.forEach(h => {
-                    html += `<option value="${h}">${h}</option>`;
+                    const selected = h === selectedHora ? 'selected' : '';
+                    html += `<option value="${h}" ${selected}>${h}</option>`;
                 });
                 horaSelect.innerHTML = html;
                 actualizarHoras();
@@ -205,7 +223,8 @@ function cargarDatosPorEmpresa(companyId) {
             if (empleadoSelect) {
                 let html = '<option value="">Sin asignar</option>';
                 data.employees.forEach(emp => {
-                    html += `<option value="${emp.id}">${emp.name}</option>`;
+                    const selected = String(emp.id) === String(selectedEmpleado) ? 'selected' : '';
+                    html += `<option value="${emp.id}" ${selected}>${emp.name}</option>`;
                 });
                 empleadoSelect.innerHTML = html;
             }
@@ -217,7 +236,13 @@ companySelect?.addEventListener('change', (e) => {
 });
 
 fechaInput?.addEventListener('change', actualizarHoras);
-actualizarHoras();
+
+// Cargar datos por empresa al iniciar si ya hay una seleccionada
+if (companySelect && companySelect.value) {
+    cargarDatosPorEmpresa(companySelect.value);
+} else {
+    actualizarHoras();
+}
 </script>
 {% endblock %}
 {% endblock %}

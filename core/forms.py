@@ -230,10 +230,15 @@ class TurnoForm(forms.ModelForm):
                 self.fields['company'].required = False
                 self.fields['company'].initial = self.user.company
                 
-                # Filtrar personal y clientes por la empresa del admin
-                self.fields['cliente'].queryset = Usuario.objects.filter(
-                    company=self.user.company, rol='cliente'
-                )
+                if self.instance and self.instance.pk:
+                    # Al editar un turno, removemos el selector de cliente
+                    self.fields.pop('cliente', None)
+                else:
+                    # Filtrar clientes por la empresa del admin/empleado al crear
+                    self.fields['cliente'].queryset = Usuario.objects.filter(
+                        company=self.user.company, rol='cliente'
+                    )
+                
                 self.fields['empleado'].queryset = Usuario.objects.filter(
                     company=self.user.company, rol='empleado'
                 )
