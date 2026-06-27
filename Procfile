@@ -1,1 +1,1 @@
-web: python manage.py migrate && gunicorn turnofacil.wsgi --log-file -
+web: python manage.py migrate && python manage.py collectstatic --noinput && gunicorn turnofacil.wsgi --log-file -

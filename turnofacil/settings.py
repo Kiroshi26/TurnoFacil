@@ -27,6 +27,12 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-turnofacil-change-thi
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
+# Orígenes confiables para la protección CSRF en producción (Railway)
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS', 
+    'https://*.up.railway.app,http://localhost,http://127.0.0.1'
+).split(',')
+
 # ── APPS ──
 INSTALLED_APPS = [
     'django.contrib.admin',
